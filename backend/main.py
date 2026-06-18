@@ -24,14 +24,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+class TrackInput(BaseModel):
+    title: str
+    artist: str
+
 class GenerateRequest(BaseModel):
     prompt: str
     count: int = 15
     genre: Optional[str] = "any"
-
-class Track(BaseModel):
-    title: str
-    artist: str
+    history: Optional[List[Message]] = None
+    selected_tracks: Optional[List[TrackInput]] = None
 
 class EnrichedTrack(BaseModel):
     id: int
@@ -155,9 +161,21 @@ async def generate(req: GenerateRequest):
 
     # Construct LLM prompt & payload
     genre_instruction = f'Focus on the "{req.genre}" genre. ' if (req.genre and req.genre != "any") else ""
+
+    selected_instruction = ""
+    if req.selected_tracks:
+        selected_list = ", ".join([f"'{t.title}' by {t.artist}" for t in req.selected_tracks])
+        selected_instruction = (
+            f"The user has selected the following tracks from the previous playlist to KEEP: [{selected_list}]. "
+            "You MUST keep these selected tracks in the new playlist, and add or change the remaining tracks "
+            "to fulfill the user's new request. "
+        )
+
     system_prompt = (
-        f"You are a music expert. Generate a playlist of {req.count} songs based on the user's request. "
+        "You are a music expert helping the user curate a playlist. "
+        f"Generate a playlist of exactly {req.count} songs. "
         f"{genre_instruction}"
+        f"{selected_instruction}"
         "Respond ONLY with a valid JSON object containing a \"tracks\" array, "
         "where each item has \"title\" and \"artist\" fields. "
         "Example: {\"tracks\": [{\"title\": \"Bohemian Rhapsody\", \"artist\": \"Queen\"}]} "
@@ -171,12 +189,18 @@ async def generate(req: GenerateRequest):
         "X-Title": "Deezer Playlist Generator",
     }
 
+    # Compile history messages
+    messages = [{"role": "system", "content": system_prompt}]
+    if req.history:
+        for msg in req.history:
+            messages.append({"role": msg.role, "content": msg.content})
+
+    # Append new user message
+    messages.append({"role": "user", "content": req.prompt})
+
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": req.prompt}
-        ]
+        "messages": messages
     }
 
     try:

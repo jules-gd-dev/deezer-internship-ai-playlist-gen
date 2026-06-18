@@ -8,9 +8,18 @@ import type { EnrichedTrack } from "@/types";
 interface PlaylistViewProps {
   tracks: EnrichedTrack[];
   prompt: string;
+  selectable?: boolean;
+  selectedTrackIds?: number[];
+  onToggleSelect?: (track: EnrichedTrack) => void;
 }
 
-export function PlaylistView({ tracks, prompt }: PlaylistViewProps) {
+export function PlaylistView({
+  tracks,
+  prompt,
+  selectable = false,
+  selectedTrackIds = [],
+  onToggleSelect,
+}: PlaylistViewProps) {
   const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -100,6 +109,10 @@ export function PlaylistView({ tracks, prompt }: PlaylistViewProps) {
     .map((t) => t.albumCover)
     .filter((cover, index, self) => cover && self.indexOf(cover) === index)
     .slice(0, 4);
+  // Dynamic grid classes
+  const gridClass = selectable
+    ? "grid grid-cols-[24px_30px_1fr_40px] sm:grid-cols-[24px_40px_1fr_1fr_50px_40px]"
+    : "grid grid-cols-[30px_1fr_40px] sm:grid-cols-[40px_1fr_1fr_50px_40px]";
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
@@ -195,8 +208,11 @@ export function PlaylistView({ tracks, prompt }: PlaylistViewProps) {
 
       {/* Tracks List */}
       <div className="flex flex-col">
+
+
         {/* Table header */}
-        <div className="grid grid-cols-[30px_1fr_40px] sm:grid-cols-[40px_1fr_1fr_50px_40px] gap-4 px-4 py-2 border-b border-white/[0.04] text-xs font-bold uppercase tracking-wider text-white/30 mb-2">
+        <div className={`${gridClass} gap-4 px-4 py-2 border-b border-white/[0.04] text-xs font-bold uppercase tracking-wider text-white/30 mb-2`}>
+          {selectable && <span className="text-center"></span>}
           <span className="text-center">#</span>
           <span>Title</span>
           <span className="hidden sm:block">Album</span>
@@ -211,16 +227,39 @@ export function PlaylistView({ tracks, prompt }: PlaylistViewProps) {
           {tracks.map((track, i) => {
             const isCurrent = playingTrack?.id === track.id;
             const isCurrentPlaying = isCurrent && isPlaying;
+            const isSelected = selectedTrackIds.includes(track.id);
 
             return (
               <div
                 key={`${track.id}-${i}`}
-                className={`grid grid-cols-[30px_1fr_40px] sm:grid-cols-[40px_1fr_1fr_50px_40px] gap-4 items-center px-4 py-3 rounded-xl transition-all group select-none ${
+                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl transition-all group select-none ${
                   isCurrent
                     ? "bg-deezer/10 border-l-[3px] border-deezer pl-[13px] sm:pl-[37px]"
+                    : isSelected
+                    ? "bg-deezer/5 border-l-[3px] border-deezer pl-[13px] sm:pl-[37px]"
                     : "hover:bg-white/[0.03] border-l-[3px] border-transparent"
                 }`}
               >
+                {/* Checkbox (if selectable) */}
+                {selectable && onToggleSelect && (
+                  <div className="flex items-center justify-center w-full h-8">
+                    <div
+                      onClick={() => onToggleSelect(track)}
+                      className={`w-4.5 h-4.5 rounded border flex items-center justify-center cursor-pointer transition-all duration-150 ${
+                        isSelected
+                          ? "border-deezer bg-deezer text-white"
+                          : "border-white/20 hover:border-white/45 bg-transparent"
+                      }`}
+                    >
+                      {isSelected && (
+                        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-none stroke-current" strokeWidth={4.5}>
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Index / Play Button */}
                 <div className="flex items-center justify-center w-full h-8 relative">
                   {track.previewUrl ? (
