@@ -5,6 +5,7 @@ services:
     ports:
       - "8001:8000"
     volumes:
+      - ./backend:/app
       - ./.git:/app/.git:ro
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -14,11 +15,15 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ./frontend
     ports:
       - "3001:3000"
     depends_on:
       - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     environment:
       - BACKEND_URL=http://backend:8000
     restart: always

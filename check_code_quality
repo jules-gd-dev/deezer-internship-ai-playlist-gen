@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# ANSI colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}=== Starting Code Quality Checks ===${NC}\n"
+
+USE_DOCKER=true
+
+# Parse flags
+for arg in "$@"; do
+  if [ "$arg" == "--local" ]; then
+    USE_DOCKER=false
+  fi
+done
+
+# Check if docker is available if we want to use docker
+if [ "$USE_DOCKER" = true ]; then
+  if ! command -v docker &> /dev/null; then
+    echo -e "${YELLOW}Docker not found. Falling back to local check...${NC}"
+    USE_DOCKER=false
+  fi
+fi
+
+FAILED=0
+
+# --- Frontend linting (ESLint) ---
+echo -e "${BLUE}--- Running ESLint (Frontend) ---${NC}"
+if [ "$USE_DOCKER" = true ]; then
+  # Build frontend if needed or use run
+  if docker compose run --rm frontend npm run lint; then
+    echo -e "${GREEN}✓ ESLint passed successfully!${NC}\n"
+  else
+    echo -e "${RED}✗ ESLint failed!${NC}\n"
+    FAILED=1
+  fi
+else
+  cd frontend
+  if [ -d "node_modules" ]; then
+    if npm run lint; then
+      echo -e "${GREEN}✓ ESLint passed successfully!${NC}\n"
+    else
+      echo -e "${RED}✗ ESLint failed!${NC}\n"
+      FAILED=1
+    fi
+  else
+    echo -e "${YELLOW}Skipping local ESLint because node_modules is not installed. Run 'npm install' in frontend/ first.${NC}\n"
+  fi
+  cd ..
+fi
+
+# --- Backend linting (Pylint) ---
+echo -e "${BLUE}--- Running Pylint (Backend) ---${NC}"
+if [ "$USE_DOCKER" = true ]; then
+  if docker compose run --rm -e PYTHONPATH=. backend pylint main.py tests/; then
+    echo -e "${GREEN}✓ Pylint passed successfully!${NC}\n"
+  else
+    echo -e "${RED}✗ Pylint failed!${NC}\n"
+    FAILED=1
+  fi
+else
+  cd backend
+  if command -v pylint &> /dev/null; then
+    if pylint main.py tests/; then
+      echo -e "${GREEN}✓ Pylint passed successfully!${NC}\n"
+    else
+      echo -e "${RED}✗ Pylint failed!${NC}\n"
+      FAILED=1
+    fi
+  else
+    echo -e "${YELLOW}Skipping local Pylint because pylint is not installed on host.${NC}\n"
+  fi
+  cd ..
+fi
+
+# --- Backend testing (Pytest) ---
+echo -e "${BLUE}--- Running Pytest (Backend) ---${NC}"
+if [ "$USE_DOCKER" = true ]; then
+  if docker compose run --rm -e PYTHONPATH=. backend pytest; then
+    echo -e "${GREEN}✓ Pytest passed successfully!${NC}\n"
+  else
+    echo -e "${RED}✗ Pytest failed!${NC}\n"
+    FAILED=1
+  fi
+else
+  cd backend
+  if command -v pytest &> /dev/null; then
+    if pytest; then
+      echo -e "${GREEN}✓ Pytest passed successfully!${NC}\n"
+    else
+      echo -e "${RED}✗ Pytest failed!${NC}\n"
+      FAILED=1
+    fi
+  else
+    echo -e "${YELLOW}Skipping local Pytest because pytest is not installed on host.${NC}\n"
+  fi
+  cd ..
+fi
+
+if [ $FAILED -ne 0 ]; then
+  echo -e "${RED}=== Some code quality checks failed ===${NC}"
+  exit 1
+else
+  echo -e "${GREEN}=== All code quality checks passed! ===${NC}"
+  exit 0
+fi
