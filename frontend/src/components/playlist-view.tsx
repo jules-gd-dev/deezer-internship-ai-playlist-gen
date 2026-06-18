@@ -1,6 +1,8 @@
 "use client";
 
-import { PlaylistTrack } from "./playlist-track";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
+import { Play, Pause, ExternalLink, Clock, Music, Volume2 } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
 
 interface PlaylistViewProps {
@@ -9,30 +11,317 @@ interface PlaylistViewProps {
 }
 
 export function PlaylistView({ tracks, prompt }: PlaylistViewProps) {
+  const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Total duration calculation
+  const totalSeconds = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+  const formatTotalDuration = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) {
+      return `${h} hr ${m} min`;
+    }
+    return `${m} min`;
+  };
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const togglePlay = (track: EnrichedTrack) => {
+    if (!audioRef.current) return;
+
+    if (playingTrack?.id === track.id) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play().catch(() => setIsPlaying(false));
+        setIsPlaying(true);
+      }
+    } else {
+      setPlayingTrack(track);
+      setIsPlaying(true);
+      audioRef.current.src = track.previewUrl;
+      audioRef.current.load();
+      audioRef.current.play().catch(() => setIsPlaying(false));
+    }
+  };
+
+  const playAll = () => {
+    const firstPlayable = tracks.find((t) => t.previewUrl);
+    if (firstPlayable) {
+      togglePlay(firstPlayable);
+    }
+  };
+
+  const handleEnded = () => {
+    if (!playingTrack) return;
+    const currentIndex = tracks.findIndex((t) => t.id === playingTrack.id);
+    if (currentIndex !== -1 && currentIndex < tracks.length - 1) {
+      // Find next track with preview
+      const nextWithPreview = tracks.slice(currentIndex + 1).find((t) => t.previewUrl);
+      if (nextWithPreview) {
+        togglePlay(nextWithPreview);
+      } else {
+        setIsPlaying(false);
+        setPlayingTrack(null);
+      }
+    } else {
+      setIsPlaying(false);
+      setPlayingTrack(null);
+    }
+  };
+
+  // Reset audio state when tracks prop changes (during render phase to avoid cascading renders)
+  const [prevTracks, setPrevTracks] = useState(tracks);
+  if (tracks !== prevTracks) {
+    setPrevTracks(tracks);
+    setPlayingTrack(null);
+    setIsPlaying(false);
+  }
+
+  // Stop audio on unmount
+  useEffect(() => {
+    const currentAudio = audioRef.current;
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+    };
+  }, []);
+
+  // Cover collage: up to 4 unique covers
+  const uniqueCovers = tracks
+    .map((t) => t.albumCover)
+    .filter((cover, index, self) => cover && self.indexOf(cover) === index)
+    .slice(0, 4);
+
   return (
-    <div>
-      <div className="flex items-end justify-between mb-5">
-        <div className="min-w-0">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-[-0.03em] font-sans">
-            Your Playlist
-          </h2>
-          <p className="text-sm text-white/50 mt-1.5 truncate italic">
-            &ldquo;{prompt}&rdquo;
-          </p>
+    <div className="flex flex-col gap-8 animate-fade-in">
+      {/* Playlist Header Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-surface/40 border border-white/[0.04] p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 sm:gap-8 shadow-2xl backdrop-blur-md">
+        {/* Cover Art Collage */}
+        <div className="relative w-40 h-40 sm:w-48 sm:h-48 rounded-2xl overflow-hidden shrink-0 shadow-lg bg-white/[0.02] border border-white/[0.08] flex items-center justify-center">
+          {uniqueCovers.length >= 4 ? (
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+              {uniqueCovers.map((cover, i) => (
+                <div key={i} className="relative w-full h-full">
+                  <Image
+                    src={cover}
+                    alt="Cover art segment"
+                    fill
+                    className="object-cover"
+                    sizes="96px"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : uniqueCovers.length > 0 ? (
+            <div className="relative w-full h-full">
+              <Image
+                src={uniqueCovers[0]}
+                alt="Playlist cover"
+                fill
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <Music className="w-12 h-12 text-white/10" />
+          )}
         </div>
-        <span className="text-xs font-semibold text-white/50 bg-white/[0.06] px-3 py-1.5 rounded-full shrink-0 ml-3">
-          {tracks.length} tracks
-        </span>
+
+        {/* Playlist metadata */}
+        <div className="flex-1 text-center md:text-left min-w-0 flex flex-col justify-end">
+          <span className="text-[11px] font-bold tracking-[0.15em] text-deezer uppercase mb-2">
+            AI Playlist
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-[-0.04em] leading-tight truncate">
+            Your Vibe Playlist
+          </h2>
+          
+          <div className="mt-3 relative">
+            <p className="text-[15px] leading-relaxed text-text-secondary line-clamp-2 italic font-sans px-4 border-l-2 border-deezer/50 bg-white/[0.01] py-1">
+              &ldquo;{prompt}&rdquo;
+            </p>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 text-xs text-white/40 font-medium">
+            <span>Deezer AI</span>
+            <span>•</span>
+            <span className="text-white/60">{tracks.length} tracks</span>
+            <span>•</span>
+            <span>{formatTotalDuration(totalSeconds)}</span>
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-6 flex flex-wrap items-center justify-center md:justify-start gap-3">
+            <button
+              onClick={playAll}
+              disabled={tracks.length === 0}
+              className="h-11 px-6 rounded-full bg-deezer text-white font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-[#B25CFF] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-deezer/20"
+            >
+              {isPlaying ? (
+                <>
+                  <Pause className="w-4 h-4" fill="currentColor" />
+                  Pause Preview
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
+                  Preview Playlist
+                </>
+              )}
+            </button>
+            
+            {tracks.length > 0 && (
+              <a
+                href={tracks[0].deezerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-11 px-6 rounded-full bg-white/[0.06] text-white/80 hover:bg-white/[0.12] hover:text-white font-bold text-sm tracking-tight flex items-center gap-2 border border-white/[0.04] transition-all"
+              >
+                Listen on Deezer
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="card p-2">
-        {tracks.map((track, i) => (
-          <div key={`${track.id}-${i}`}>
-            {i > 0 && <div className="mx-3 h-px bg-white/[0.04]" />}
-            <PlaylistTrack track={track} index={i} />
-          </div>
-        ))}
+      {/* Tracks List */}
+      <div className="flex flex-col">
+        {/* Table header */}
+        <div className="grid grid-cols-[30px_1fr_40px] sm:grid-cols-[40px_1fr_1fr_50px_40px] gap-4 px-4 py-2 border-b border-white/[0.04] text-xs font-bold uppercase tracking-wider text-white/30 mb-2">
+          <span className="text-center">#</span>
+          <span>Title</span>
+          <span className="hidden sm:block">Album</span>
+          <span className="hidden sm:flex items-center justify-center">
+            <Clock className="w-3.5 h-3.5" />
+          </span>
+          <span className="text-center"></span>
+        </div>
+
+        {/* Track Rows */}
+        <div className="flex flex-col gap-0.5">
+          {tracks.map((track, i) => {
+            const isCurrent = playingTrack?.id === track.id;
+            const isCurrentPlaying = isCurrent && isPlaying;
+
+            return (
+              <div
+                key={`${track.id}-${i}`}
+                className={`grid grid-cols-[30px_1fr_40px] sm:grid-cols-[40px_1fr_1fr_50px_40px] gap-4 items-center px-4 py-3 rounded-xl transition-all group select-none ${
+                  isCurrent
+                    ? "bg-deezer/10 border-l-[3px] border-deezer pl-[13px] sm:pl-[37px]"
+                    : "hover:bg-white/[0.03] border-l-[3px] border-transparent"
+                }`}
+              >
+                {/* Index / Play Button */}
+                <div className="flex items-center justify-center w-full h-8 relative">
+                  {track.previewUrl ? (
+                    <>
+                      {/* Standard index state */}
+                      <span className={`text-[13px] font-medium font-mono text-white/30 group-hover:hidden ${isCurrent ? "text-deezer" : ""}`}>
+                        {isCurrentPlaying ? (
+                          <div className="flex items-end justify-center gap-[2px] w-3 h-3.5">
+                            <span className="w-[2px] bg-deezer animate-eq-bar-1" />
+                            <span className="w-[2px] bg-deezer animate-eq-bar-2" />
+                            <span className="w-[2px] bg-deezer animate-eq-bar-3" />
+                          </div>
+                        ) : (
+                          i + 1
+                        )}
+                      </span>
+                      {/* Hover play/pause icon */}
+                      <button
+                        onClick={() => togglePlay(track)}
+                        className={`hidden group-hover:flex items-center justify-center w-7 h-7 rounded-full text-white transition-all scale-95 hover:scale-105 cursor-pointer ${
+                          isCurrentPlaying ? "bg-deezer" : "bg-white/10 hover:bg-white/25"
+                        }`}
+                      >
+                        {isCurrentPlaying ? (
+                          <Pause className="w-3.5 h-3.5" fill="currentColor" />
+                        ) : (
+                          <Play className="w-3.5 h-3.5 ml-0.5" fill="currentColor" />
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[13px] font-medium font-mono text-white/15">
+                      {i + 1}
+                    </span>
+                  )}
+                </div>
+
+                {/* Cover, Title and Artist */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white/[0.02] border border-white/[0.04]">
+                    {track.albumCover ? (
+                      <Image
+                        src={track.albumCover}
+                        alt={track.albumName}
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Music className="w-4 h-4 text-white/20" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[14px] font-semibold truncate leading-tight tracking-tight ${isCurrent ? "text-deezer" : "text-white"}`}>
+                      {track.title}
+                    </p>
+                    <p className="text-[13px] text-white/55 truncate mt-0.5">
+                      {track.artist}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Album Name */}
+                <div className="hidden sm:block text-[13px] text-white/50 truncate">
+                  {track.albumName}
+                </div>
+
+                {/* Duration */}
+                <div className="hidden sm:flex justify-center text-[13px] text-white/30 tabular-nums">
+                  {formatDuration(track.duration)}
+                </div>
+
+                {/* Quick actions */}
+                <div className="flex items-center justify-center gap-2 shrink-0">
+                  {isCurrent && !isPlaying && (
+                    <Volume2 className="w-4 h-4 text-deezer/50 animate-pulse hidden sm:block" />
+                  )}
+                  <a
+                    href={track.deezerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 text-white/30 hover:text-deezer"
+                    title="Open on Deezer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      <audio
+        ref={audioRef}
+        onEnded={handleEnded}
+        preload="auto"
+      />
     </div>
   );
 }
