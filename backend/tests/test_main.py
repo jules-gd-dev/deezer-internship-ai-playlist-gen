@@ -34,7 +34,10 @@ def test_generate_success(monkeypatch):
                     "choices": [
                         {
                             "message": {
-                                "content": '{"tracks": [{"title": "Yesterday", "artist": "The Beatles"}]}'
+                                "content": (
+                                    '{"name": "Test Playlist", '
+                                    '"tracks": [{"title": "Yesterday", "artist": "The Beatles"}]}'
+                                ),
                             }
                         }
                     ]
@@ -78,7 +81,7 @@ def test_generate_success(monkeypatch):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["prompt"] == "Peaceful morning"
+    assert data["name"] == "Test Playlist"
     assert data["total"] == 1
     assert data["matched"] == 1
     assert len(data["tracks"]) == 1

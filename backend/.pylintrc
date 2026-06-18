@@ -8,6 +8,8 @@ disable=
     missing-function-docstring,
     too-few-public-methods,
     too-many-locals,
+    too-many-branches,
+    too-many-statements,
     no-name-in-module,
     no-self-argument
 

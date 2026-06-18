@@ -66,12 +66,12 @@ export function GenreDropdown({ genres, selected, onSelect, disabled = false }: 
         onClick={toggleOpen}
         className={`
           w-full h-12 pl-4 pr-3 rounded-xl text-sm font-medium text-white
-          bg-surface border border-border outline-none transition-colors
-          hover:bg-surface-elevated flex items-center gap-3
+          bg-white/[0.03] border border-white/[0.05] outline-none transition-colors
+          hover:bg-white/[0.05] flex items-center gap-3
           ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
         `}
       >
-        <CurrentIcon className="w-4 h-4 text-deezer shrink-0" strokeWidth={2} />
+        <CurrentIcon className="w-4 h-4 text-white/30 shrink-0" strokeWidth={2} />
         <span className="flex-1 text-left truncate">{current.name}</span>
         <ChevronDown
           className={`w-4 h-4 text-white/40 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}

@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Play, Pause, ExternalLink, Clock, Music, Volume2 } from "lucide-react";
+import { Play, Pause, ExternalLink, Clock, Music } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
 
 interface PlaylistViewProps {
   tracks: EnrichedTrack[];
-  prompt: string;
+  name?: string;
   selectable?: boolean;
   selectedTrackIds?: number[];
   onToggleSelect?: (track: EnrichedTrack) => void;
@@ -15,7 +15,7 @@ interface PlaylistViewProps {
 
 export function PlaylistView({
   tracks,
-  prompt,
+  name,
   selectable = false,
   selectedTrackIds = [],
   onToggleSelect,
@@ -23,6 +23,18 @@ export function PlaylistView({
   const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const displayName = (() => {
+    if (!name) return "Generated Playlist";
+    const trimmed = name.trim().replace(/^["']|["']$/g, "");
+    if (trimmed.length <= 40) return trimmed;
+    for (const sep of [":", " — ", " - ", ", ", " (", " ["]) {
+      const idx = trimmed.indexOf(sep);
+      if (idx > 10 && idx <= 40) return trimmed.slice(0, idx);
+    }
+    const cut = trimmed.slice(0, 40);
+    return cut.includes(" ") ? cut.split(" ").slice(0, -1).join(" ") + "…" : cut + "…";
+  })();
 
   // Total duration calculation
   const totalSeconds = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
@@ -62,9 +74,14 @@ export function PlaylistView({
   };
 
   const playAll = () => {
-    const firstPlayable = tracks.find((t) => t.previewUrl);
-    if (firstPlayable) {
-      togglePlay(firstPlayable);
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      const firstPlayable = tracks.find((t) => t.previewUrl);
+      if (firstPlayable) {
+        togglePlay(firstPlayable);
+      }
     }
   };
 
@@ -154,15 +171,8 @@ export function PlaylistView({
             AI Playlist
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-[-0.04em] leading-tight truncate">
-            Your Vibe Playlist
+            {displayName}
           </h2>
-          
-          <div className="mt-3 relative">
-            <p className="text-[15px] leading-relaxed text-text-secondary line-clamp-2 italic font-sans px-4 border-l-2 border-deezer/50 bg-white/[0.01] py-1">
-              &ldquo;{prompt}&rdquo;
-            </p>
-          </div>
-
           <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 text-xs text-white/40 font-medium">
             <span>Deezer AI</span>
             <span>•</span>
@@ -176,7 +186,7 @@ export function PlaylistView({
             <button
               onClick={playAll}
               disabled={tracks.length === 0}
-              className="h-11 px-6 rounded-full bg-deezer text-white font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-[#B25CFF] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-deezer/20"
+              className="h-11 px-6 rounded-lg bg-deezer text-white font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-[#B25CFF] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-deezer/20"
             >
               {isPlaying ? (
                 <>
@@ -191,17 +201,7 @@ export function PlaylistView({
               )}
             </button>
             
-            {tracks.length > 0 && (
-              <a
-                href={tracks[0].deezerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-11 px-6 rounded-full bg-white/[0.06] text-white/80 hover:bg-white/[0.12] hover:text-white font-bold text-sm tracking-tight flex items-center gap-2 border border-white/[0.04] transition-all"
-              >
-                Listen on Deezer
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
+
           </div>
         </div>
       </div>
@@ -232,13 +232,10 @@ export function PlaylistView({
             return (
               <div
                 key={`${track.id}-${i}`}
+                onClick={() => track.previewUrl && togglePlay(track)}
                 className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl transition-all group select-none ${
-                  isCurrent
-                    ? "bg-deezer/10 border-l-[3px] border-deezer pl-[13px] sm:pl-[37px]"
-                    : isSelected
-                    ? "bg-deezer/5 border-l-[3px] border-deezer pl-[13px] sm:pl-[37px]"
-                    : "hover:bg-white/[0.03] border-l-[3px] border-transparent"
-                }`}
+                  isCurrent || isSelected ? "" : "hover:bg-white/[0.03]"
+                } ${track.previewUrl ? "cursor-pointer" : ""}`}
               >
                 {/* Checkbox (if selectable) */}
                 {selectable && onToggleSelect && (
@@ -264,8 +261,8 @@ export function PlaylistView({
                 <div className="flex items-center justify-center w-full h-8 relative">
                   {track.previewUrl ? (
                     <>
-                      {/* Standard index state */}
-                      <span className={`text-[13px] font-medium font-mono text-white/30 group-hover:hidden ${isCurrent ? "text-deezer" : ""}`}>
+                      {/* Track number (or eq bars when playing) - desktop only, hidden on hover */}
+                      <span className={`hidden md:inline group-hover:hidden text-[13px] font-medium font-mono text-white/30`}>
                         {isCurrentPlaying ? (
                           <div className="flex items-end justify-center gap-[2px] w-3 h-3.5">
                             <span className="w-[2px] bg-deezer animate-eq-bar-1" />
@@ -276,12 +273,10 @@ export function PlaylistView({
                           i + 1
                         )}
                       </span>
-                      {/* Hover play/pause icon */}
+                      {/* Desktop hover play/pause button (always purple) */}
                       <button
-                        onClick={() => togglePlay(track)}
-                        className={`hidden group-hover:flex items-center justify-center w-7 h-7 rounded-full text-white transition-all scale-95 hover:scale-105 cursor-pointer ${
-                          isCurrentPlaying ? "bg-deezer" : "bg-white/10 hover:bg-white/25"
-                        }`}
+                        onClick={(e) => { e.stopPropagation(); togglePlay(track); }}
+                        className={`hidden md:group-hover:flex items-center justify-center w-7 h-7 rounded-full text-white transition-all scale-95 hover:scale-105 cursor-pointer bg-deezer`}
                       >
                         {isCurrentPlaying ? (
                           <Pause className="w-3.5 h-3.5" fill="currentColor" />
@@ -289,6 +284,18 @@ export function PlaylistView({
                           <Play className="w-3.5 h-3.5 ml-0.5" fill="currentColor" />
                         )}
                       </button>
+                      {/* Mobile: always show the track number */}
+                      <span className="md:hidden text-[13px] font-medium font-mono text-white/30">
+                        {isCurrentPlaying ? (
+                          <div className="flex items-end justify-center gap-[2px] w-3 h-3.5">
+                            <span className="w-[2px] bg-deezer animate-eq-bar-1" />
+                            <span className="w-[2px] bg-deezer animate-eq-bar-2" />
+                            <span className="w-[2px] bg-deezer animate-eq-bar-3" />
+                          </div>
+                        ) : (
+                          i + 1
+                        )}
+                      </span>
                     </>
                   ) : (
                     <span className="text-[13px] font-medium font-mono text-white/15">
@@ -316,7 +323,7 @@ export function PlaylistView({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className={`text-[14px] font-semibold truncate leading-tight tracking-tight ${isCurrent ? "text-deezer" : "text-white"}`}>
+                    <p className={`text-[14px] font-semibold truncate leading-tight tracking-tight ${isCurrentPlaying ? "text-deezer" : "text-white"}`}>
                       {track.title}
                     </p>
                     <p className="text-[13px] text-white/55 truncate mt-0.5">
@@ -336,14 +343,12 @@ export function PlaylistView({
                 </div>
 
                 {/* Quick actions */}
-                <div className="flex items-center justify-center gap-2 shrink-0">
-                  {isCurrent && !isPlaying && (
-                    <Volume2 className="w-4 h-4 text-deezer/50 animate-pulse hidden sm:block" />
-                  )}
+                <div className="flex items-center justify-center shrink-0">
                   <a
                     href={track.deezerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                     className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 text-white/30 hover:text-deezer"
                     title="Open on Deezer"
                   >
