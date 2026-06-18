@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #121212;
+  --color-card: #181818;
+  --color-card-hover: #1E1E1E;
+  --color-card-bg: #181818;
+  --color-card-hover-bg: #1E1E1E;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: rgba(255,255,255,0.6);
+  --color-text-disabled: rgba(255,255,255,0.3);
+  --color-border: rgba(255,255,255,0.08);
+  --color-input-bg: #181818;
+  --color-surface: #181818;
+  --color-surface-elevated: #242424;
+  --color-deezer: #A238FF;
+  --color-gradient-start: #A238FF;
+  --color-gradient-end: #A238FF;
+  --radius-input: 12px;
+  --radius-button: 999px;
+  --radius-card: 16px;
+  --radius-dialog: 24px;
+  --font-sans: var(--font-space-grotesk);
+  --font-body: var(--font-inter);
+  --breakpoint-xs: 480px;
+}
+
+body {
+  background: #000000;
+  color: rgba(255,255,255,0.6);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Card ── */
+.card {
+  background: #181818;
+  border-radius: 16px;
+  transition: background .2s ease;
+}
+
+.card:hover {
+  background: #1E1E1E;
+}
+
+/* ── Deezer primary button ── */
+.btn-gradient {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 32px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: #A238FF;
+  transition: all .15s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-gradient:hover {
+  background: #B25CFF;
+  transform: scale(1.02);
+}
+
+.btn-gradient:active {
+  transform: scale(0.98);
+  background: #8E2DE2;
+}
+
+.btn-gradient:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Waveform bar animation ── */
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.wave-bar {
+  animation: wave-bar 1s ease-in-out infinite;
+}
+
+/* ── Staggered list ── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-item {
+  animation: fade-in-up .3s ease both;
+}
+
+.stagger-item:nth-child(1)  { animation-delay: 0.03s; }
+.stagger-item:nth-child(2)  { animation-delay: 0.06s; }
+.stagger-item:nth-child(3)  { animation-delay: 0.09s; }
+.stagger-item:nth-child(4)  { animation-delay: 0.12s; }
+.stagger-item:nth-child(5)  { animation-delay: 0.15s; }
+.stagger-item:nth-child(6)  { animation-delay: 0.18s; }
+.stagger-item:nth-child(7)  { animation-delay: 0.21s; }
+.stagger-item:nth-child(8)  { animation-delay: 0.24s; }
+.stagger-item:nth-child(9)  { animation-delay: 0.27s; }
+.stagger-item:nth-child(10) { animation-delay: 0.3s; }
+.stagger-item:nth-child(11) { animation-delay: 0.33s; }
+.stagger-item:nth-child(12) { animation-delay: 0.36s; }
+.stagger-item:nth-child(13) { animation-delay: 0.39s; }
+.stagger-item:nth-child(14) { animation-delay: 0.42s; }
+.stagger-item:nth-child(15) { animation-delay: 0.45s; }
+
+/* ── Heart pulse ── */
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+@keyframes pulse-fast {
+  0%, 100% { transform: scale(1); }
+  25%      { transform: scale(1.12); }
+  50%      { transform: scale(1); }
+  75%      { transform: scale(1.06); }
+}
+
+.animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+.animate-pulse-fast { animation: pulse-fast 0.55s ease-in-out infinite; }
+
+/* ── Gradient spinner ── */
+@keyframes spin-gradient {
+  to { transform: rotate(360deg); }
+}
+
+.spinner-gradient {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.15);
+  border-top-color: #A238FF;
+  animation: spin-gradient 0.7s linear infinite;
+}
