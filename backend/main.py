@@ -157,7 +157,7 @@ async def generate(req: GenerateRequest):
             detail="API key not configured. Please set the OPENROUTER_API_KEY environment variable."
         )
 
-    model = os.getenv("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
+    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o")
 
     # Construct LLM prompt & payload
     genre_instruction = f'Focus on the "{req.genre}" genre. ' if (req.genre and req.genre != "any") else ""
