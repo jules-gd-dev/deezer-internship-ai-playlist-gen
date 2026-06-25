@@ -213,6 +213,11 @@ export default function Home() {
         throw new Error(data.detail || data.error || data.message || "Generation failed");
       }
 
+      if (data.rejected) {
+        setError(data.error || "Your prompt was rejected by our guardrail.");
+        return;
+      }
+
       setTracks(data.tracks);
       setPlaylistName(data.name || "");
 

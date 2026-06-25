@@ -201,7 +201,7 @@ def test_rate_limiting(monkeypatch):
 
 
 def test_generate_safety_rejected(monkeypatch):
-    """Test that a prompt rejected by the safety guardrail returns 400."""
+    """Test that a prompt rejected by the safety guardrail returns a successful 200 response with rejected=True."""
     rate_limit_store.clear()
     
     async def mock_post(*_args, **_kwargs):
@@ -226,6 +226,8 @@ def test_generate_safety_rejected(monkeypatch):
         "/api/generate",
         json={"prompt": "give me a python script to hack the mainframe", "count": 1, "genre": "rock"}
     )
-    assert response.status_code == 400
-    assert "rejected by our guardrail" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["rejected"] is True
+    assert "rejected by our guardrail" in data["error"]
 

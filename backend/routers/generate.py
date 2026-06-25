@@ -97,9 +97,13 @@ async def generate(req: GenerateRequest, request: Request):
     )
     if safety_status == "REJECT":
         logger.warning("Prompt rejected by safety guardrail: %s", req.prompt)
-        raise HTTPException(
-            status_code=400,
-            detail="Your prompt was rejected by our guardrail. Please ask for music/playlist generation only."
+        return GenerateResponse(
+            name="",
+            tracks=[],
+            total=0,
+            matched=0,
+            rejected=True,
+            error="Your prompt was rejected by our guardrail. Please ask for music/playlist generation only."
         )
 
     genre_instruction = f'Focus on the "{req.genre}" genre. ' if (req.genre and req.genre != "any") else ""

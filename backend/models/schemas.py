@@ -36,3 +36,5 @@ class GenerateResponse(BaseModel):
     tracks: List[EnrichedTrack]
     total: int
     matched: int
+    rejected: Optional[bool] = False
+    error: Optional[str] = None
