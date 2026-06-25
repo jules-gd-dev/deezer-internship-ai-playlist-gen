@@ -51,6 +51,10 @@ const translations = {
     inspiration_title: "INSPIRATION IDEAS",
     empty_workspace_title: "Your Curation Studio",
     empty_workspace_desc: "Describe your target mood or genre on the left to start designing your custom playlist.",
+    delete_track: "Delete track",
+    history_title: "YOUR HISTORY",
+    history_empty: "No saved playlists yet.",
+    clear_history: "Clear history",
   },
   fr: {
     title: "Générateur de Playlist",
@@ -98,6 +102,10 @@ const translations = {
     inspiration_title: "IDÉES D'INSPIRATION",
     empty_workspace_title: "Votre studio de curation",
     empty_workspace_desc: "Décrivez l'ambiance musicale recherchée sur la gauche pour concevoir votre sélection personnalisée.",
+    delete_track: "Supprimer le titre",
+    history_title: "VOTRE HISTORIQUE",
+    history_empty: "Aucune playlist enregistrée.",
+    clear_history: "Effacer l'historique",
   },
 };
 

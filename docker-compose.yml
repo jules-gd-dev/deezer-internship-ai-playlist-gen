@@ -17,7 +17,17 @@ services:
       - GROQ_MODEL=${GROQ_MODEL}
       - GROQ_FALLBACK_MODEL=${GROQ_FALLBACK_MODEL}
       - GIT_DIR=/app/.git
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
     restart: always
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
 
   frontend:
     build:

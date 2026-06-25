@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Play, Pause, ExternalLink, Clock, Music } from "lucide-react";
+import { Play, Pause, ExternalLink, Clock, Music, Trash2 } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
 import { useI18n } from "@/lib/i18n";
 
@@ -12,6 +12,7 @@ interface PlaylistViewProps {
   selectable?: boolean;
   selectedTrackIds?: number[];
   onToggleSelect?: (track: EnrichedTrack) => void;
+  onDeleteTrack?: (trackId: number) => void;
 }
 
 export function PlaylistView({
@@ -20,6 +21,7 @@ export function PlaylistView({
   selectable = false,
   selectedTrackIds = [],
   onToggleSelect,
+  onDeleteTrack,
 }: PlaylistViewProps) {
   const { t } = useI18n();
   const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
@@ -362,7 +364,19 @@ export function PlaylistView({
                 </div>
 
                 {/* Quick actions */}
-                <div className="flex items-center justify-center shrink-0">
+                <div className="flex items-center justify-center gap-1.5 shrink-0">
+                  {onDeleteTrack && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteTrack(track.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 text-white/30 hover:text-red-400 cursor-pointer"
+                      title={t("delete_track")}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <a
                     href={track.deezerUrl}
                     target="_blank"

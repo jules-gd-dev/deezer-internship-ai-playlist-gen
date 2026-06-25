@@ -33,6 +33,15 @@ const SUGGESTIONS = [
   },
 ];
 
+interface HistoryEntry {
+  id: string;
+  name: string;
+  prompt: string;
+  genre: string;
+  tracks: EnrichedTrack[];
+  timestamp: number;
+}
+
 export default function Home() {
   const { t, locale } = useI18n();
   const [tracks, setTracks] = useState<EnrichedTrack[]>([]);
@@ -41,13 +50,73 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     textareaRef.current?.focus();
     console.log("[Deezer Playlist Gen] Loaded version 2.0.0. Active Fonts: Inter (sans-serif). Layout: Pro Curation Studio.");
+
+    // Load history from localStorage
+    const saved = localStorage.getItem("playlist_history");
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse playlist history", e);
+      }
+    }
   }, []);
+
+  const saveToHistory = (name: string, pmt: string, gnr: string, trks: EnrichedTrack[]) => {
+    const newEntry: HistoryEntry = {
+      id: Math.random().toString(36).substring(2, 9),
+      name: name || pmt || "Unnamed Playlist",
+      prompt: pmt,
+      genre: gnr,
+      tracks: trks,
+      timestamp: Date.now()
+    };
+    setHistory(prev => {
+      const updated = [newEntry, ...prev.filter(item => item.prompt !== pmt)].slice(0, 10);
+      localStorage.setItem("playlist_history", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleDeleteTrack = (trackId: number) => {
+    setTracks(prev => {
+      const updated = prev.filter(t => t.id !== trackId);
+
+      setHistory(prevHistory => {
+        const updatedHistory = prevHistory.map(entry => {
+          if (entry.prompt === prompt) {
+            return { ...entry, tracks: entry.tracks.filter(t => t.id !== trackId) };
+          }
+          return entry;
+        });
+        localStorage.setItem("playlist_history", JSON.stringify(updatedHistory));
+        return updatedHistory;
+      });
+
+      return updated;
+    });
+  };
+
+  const handleLoadHistory = (entry: HistoryEntry) => {
+    if (loading) return;
+    setTracks(entry.tracks);
+    setPlaylistName(entry.name);
+    setPrompt(entry.prompt);
+    setGenre(entry.genre);
+    setError(null);
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem("playlist_history");
+  };
 
   const handleNewSession = () => {
     setTracks([]);
@@ -91,6 +160,7 @@ export default function Home() {
 
       setTracks(data.tracks);
       setPlaylistName(data.name || "");
+      saveToHistory(data.name || "", userPrompt, genre, data.tracks);
     } catch (err: any) {
       console.error("Generation failed:", err);
       setError(err.message || "Generation failed");
@@ -210,6 +280,44 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* History Panel */}
+          {history.length > 0 && (
+            <div className="mt-5 bg-[#121215]/50 border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-3">
+              <div className="flex items-center justify-between border-b border-white/[0.04] pb-2">
+                <h3 className="text-[11px] font-bold tracking-[0.1em] uppercase text-white/30">
+                  {t("history_title")}
+                </h3>
+                <button
+                  onClick={handleClearHistory}
+                  className="text-[10px] text-white/30 hover:text-red-400 font-bold transition-all cursor-pointer"
+                >
+                  {t("clear_history")}
+                </button>
+              </div>
+              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                {history.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => handleLoadHistory(entry)}
+                    className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group"
+                  >
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
+                        {entry.name}
+                      </span>
+                      <span className="text-[11px] text-white/30 truncate mt-0.5">
+                        {entry.prompt}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-deezer font-semibold shrink-0">
+                      {entry.tracks.length} {t("tracks")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Output Playlist workspace / Loader */}
@@ -224,7 +332,7 @@ export default function Home() {
             </div>
           ) : tracks.length > 0 ? (
             <div className="flex-grow flex flex-col justify-between gap-6">
-              <PlaylistView tracks={tracks} name={playlistName} />
+              <PlaylistView tracks={tracks} name={playlistName} onDeleteTrack={handleDeleteTrack} />
               
               <div className="flex justify-end pt-4 border-t border-white/[0.04] shrink-0">
                 <button

@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend")
@@ -8,7 +9,12 @@ MAX_RETRIES = 2
 MATCH_THRESHOLD = 0.6
 
 
+def get_redis_url() -> Optional[str]:
+    return os.getenv("REDIS_URL")
+
+
 def get_provider() -> str:
+
     return os.getenv("PROVIDER", "openrouter").lower()
 
 
