@@ -359,16 +359,10 @@ export default function Home() {
             <div className="mt-5 bg-[#121215]/50 border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-3">
               {history.length > 0 && (
                 <>
-                  <div className="flex items-center justify-between border-b border-white/[0.04] pb-2">
+                  <div className="border-b border-white/[0.04] pb-2">
                     <h3 className="text-[11px] font-bold tracking-[0.1em] uppercase text-white/30">
                       {t("history_title")}
                     </h3>
-                    <button
-                      onClick={handleClearHistory}
-                      className="text-[10px] text-white/30 hover:text-red-400 font-bold transition-all cursor-pointer"
-                    >
-                      {t("clear_history")}
-                    </button>
                   </div>
                   <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
                     {history.map((entry) => {
@@ -391,17 +385,8 @@ export default function Home() {
                         <button
                           key={entry.id}
                           onClick={() => handleLoadHistory(entry)}
-                          className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group gap-3"
+                          className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center group gap-3"
                         >
-                          <div className="flex-1 min-w-0 flex flex-col">
-                            <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
-                              {entry.name}
-                            </span>
-                            <span className="text-[11px] text-white/30 truncate mt-0.5">
-                              {entry.prompt}
-                            </span>
-                          </div>
-                          
                           {/* Thumbnail of the playlist (collage + Deezer logo) */}
                           <div className="relative w-9 h-9 rounded-md overflow-hidden shrink-0 bg-white/[0.02] border border-white/[0.08] flex items-center justify-center shadow-md">
                             {displayCovers.length >= 4 ? (
@@ -444,6 +429,15 @@ export default function Home() {
                                 </svg>
                               </div>
                             )}
+                          </div>
+
+                          <div className="flex-1 min-w-0 flex flex-col">
+                            <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
+                              {entry.name}
+                            </span>
+                            <span className="text-[11px] text-white/30 truncate mt-0.5">
+                              {entry.prompt}
+                            </span>
                           </div>
                         </button>
                       );
