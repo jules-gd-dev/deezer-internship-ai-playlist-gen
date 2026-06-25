@@ -129,6 +129,27 @@ export default function Home() {
     });
   };
 
+  const handleReorderTracks = (fromIndex: number, toIndex: number) => {
+    setTracks(prev => {
+      const updated = [...prev];
+      const [removed] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, removed);
+
+      setHistory(prevHistory => {
+        const updatedHistory = prevHistory.map(entry => {
+          if (entry.prompt === prompt) {
+            return { ...entry, tracks: updated };
+          }
+          return entry;
+        });
+        localStorage.setItem("playlist_history", JSON.stringify(updatedHistory));
+        return updatedHistory;
+      });
+
+      return updated;
+    });
+  };
+
   const handleLoadHistory = (entry: HistoryEntry) => {
     if (loading) return;
     setTracks(entry.tracks);
@@ -373,7 +394,13 @@ export default function Home() {
               <WaveformLoader />
             </div>
           ) : tracks.length > 0 ? (
-            <PlaylistView tracks={tracks} name={playlistName} onDeleteTrack={handleDeleteTrack} onMoveTrack={handleMoveTrack} />
+            <PlaylistView
+              tracks={tracks}
+              name={playlistName}
+              onDeleteTrack={handleDeleteTrack}
+              onMoveTrack={handleMoveTrack}
+              onReorderTracks={handleReorderTracks}
+            />
           ) : (
             /* Elegant Workspace Empty State (Fallback/Legacy) */
             <div className="flex-grow flex flex-col items-center justify-center text-center p-8">

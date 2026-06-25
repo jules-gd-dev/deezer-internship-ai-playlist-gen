@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Play, Pause, ExternalLink, Clock, Music, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Play, Pause, ExternalLink, Clock, Music, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
 import { useI18n } from "@/lib/i18n";
 
@@ -14,6 +14,7 @@ interface PlaylistViewProps {
   onToggleSelect?: (track: EnrichedTrack) => void;
   onDeleteTrack?: (trackId: number) => void;
   onMoveTrack?: (index: number, direction: "up" | "down") => void;
+  onReorderTracks?: (fromIndex: number, toIndex: number) => void;
 }
 
 export function PlaylistView({
@@ -24,11 +25,13 @@ export function PlaylistView({
   onToggleSelect,
   onDeleteTrack,
   onMoveTrack,
+  onReorderTracks,
 }: PlaylistViewProps) {
   const { t } = useI18n();
   const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const displayName = (() => {
     if (!name) return t("title");
@@ -42,10 +45,22 @@ export function PlaylistView({
     return cut.includes(" ") ? cut.split(" ").slice(0, -1).join(" ") + "…" : cut + "…";
   })();
 
+  // Cover collage state: stays fixed during reordering of the same playlist
+  const [collageCovers, setCollageCovers] = useState<string[]>([]);
+  const trackIdsKey = tracks.map((t) => t.id).sort().join(",");
+
+  useEffect(() => {
+    const unique = tracks
+      .map((t) => t.albumCover)
+      .filter((cover, index, self) => cover && self.indexOf(cover) === index)
+      .slice(0, 4);
+    setCollageCovers(unique);
+  }, [trackIdsKey]);
+
   // Deterministic check to pick solid white or solid black watermark for the cover art
   const isLogoWhite = (() => {
-    if (!tracks.length) return true;
-    const key = tracks[0].albumCover || tracks[0].title || "";
+    if (!collageCovers.length) return true;
+    const key = collageCovers[0] || "";
     let hash = 0;
     for (let i = 0; i < key.length; i++) {
       hash = key.charCodeAt(i) + ((hash << 5) - hash);
@@ -138,15 +153,29 @@ export function PlaylistView({
     };
   }, []);
 
-  // Cover collage: up to 4 unique covers
-  const uniqueCovers = tracks
-    .map((t) => t.albumCover)
-    .filter((cover, index, self) => cover && self.indexOf(cover) === index)
-    .slice(0, 4);
   // Dynamic grid classes
   const gridClass = selectable
-    ? "grid grid-cols-[24px_30px_1fr_60px] sm:grid-cols-[24px_40px_1fr_1fr_50px_70px]"
-    : "grid grid-cols-[30px_1fr_60px] sm:grid-cols-[40px_1fr_1fr_50px_70px]";
+    ? "grid grid-cols-[20px_24px_30px_1fr_60px] sm:grid-cols-[20px_24px_40px_1fr_1fr_50px_70px]"
+    : "grid grid-cols-[20px_30px_1fr_60px] sm:grid-cols-[20px_40px_1fr_1fr_50px_70px]";
+
+  // Drag and drop event handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
+
+  const handleDragEnter = (e: React.DragEvent, targetIndex: number) => {
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    if (onReorderTracks) {
+      onReorderTracks(draggedIndex, targetIndex);
+      setDraggedIndex(targetIndex);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
@@ -154,9 +183,9 @@ export function PlaylistView({
       <div className="relative overflow-hidden rounded-3xl bg-surface/40 border border-white/[0.04] p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 sm:gap-8 shadow-2xl backdrop-blur-md">
         {/* Cover Art Collage */}
         <div className="relative w-40 h-40 sm:w-48 sm:h-48 rounded-2xl overflow-hidden shrink-0 shadow-lg bg-white/[0.02] border border-white/[0.08] flex items-center justify-center">
-          {uniqueCovers.length >= 4 ? (
+          {collageCovers.length >= 4 ? (
             <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
-              {uniqueCovers.map((cover, i) => (
+              {collageCovers.map((cover, i) => (
                 <div key={i} className="relative w-full h-full">
                   <Image
                     src={cover}
@@ -168,10 +197,10 @@ export function PlaylistView({
                 </div>
               ))}
             </div>
-          ) : uniqueCovers.length > 0 ? (
+          ) : collageCovers.length > 0 ? (
             <div className="relative w-full h-full">
               <Image
-                src={uniqueCovers[0]}
+                src={collageCovers[0]}
                 alt="Playlist cover"
                 fill
                 className="object-cover"
@@ -235,6 +264,7 @@ export function PlaylistView({
 
         {/* Table header */}
         <div className={`${gridClass} gap-4 px-4 py-2 border-b border-white/[0.04] text-xs font-bold uppercase tracking-wider text-white/30 mb-2`}>
+          <span className="w-5"></span> {/* Grip handle empty cell */}
           {selectable && <span className="text-center"></span>}
           <span className="text-center">#</span>
           <span>{t("track_col")}</span>
@@ -256,10 +286,22 @@ export function PlaylistView({
               <div
                 key={`${track.id}-${i}`}
                 onClick={() => track.previewUrl && togglePlay(track)}
-                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl transition-all group select-none ${
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, i)}
+                onDragEnter={(e) => handleDragEnter(e, i)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => e.preventDefault()}
+                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl transition-all duration-200 group select-none ${
                   isCurrent || isSelected ? "" : "hover:bg-white/[0.03]"
-                } ${track.previewUrl ? "cursor-pointer" : ""}`}
+                } ${track.previewUrl ? "cursor-pointer" : ""} ${
+                  draggedIndex === i ? "opacity-30 bg-deezer/10 scale-[0.98] border border-dashed border-deezer/30" : ""
+                }`}
               >
+                {/* Grip Handle */}
+                <div className="flex items-center justify-center text-white/10 group-hover:text-white/45 cursor-grab active:cursor-grabbing transition-colors w-5 h-8">
+                  <GripVertical className="w-3.5 h-3.5" />
+                </div>
+
                 {/* Checkbox (if selectable) */}
                 {selectable && onToggleSelect && (
                   <div className="flex items-center justify-center w-full h-8">
