@@ -171,12 +171,16 @@ export function PlaylistView({
     }
   };
 
-  const handleDragEnd = () => {
-    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
       if (onReorderTracks) {
-        onReorderTracks(draggedIndex, dragOverIndex);
+        onReorderTracks(draggedIndex, index);
       }
     }
+  };
+
+  const handleDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -286,31 +290,29 @@ export function PlaylistView({
             const isCurrentPlaying = isCurrent && isPlaying;
             const isSelected = selectedTrackIds.includes(track.id);
 
-            // Compute shift offset dynamically via inline style to support any drag distance
+            // Compute shift offset dynamically via inline style to support drag visual space opening
             let transformStyle = {};
             if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
               if (i === draggedIndex) {
-                const offset = (dragOverIndex - draggedIndex) * 66;
+                // The item being dragged remains hidden at its source index
                 transformStyle = {
-                  transform: `translateY(${offset}px)`,
-                  transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
-                  willChange: "transform",
+                  transform: "translateY(0px)",
                 };
               } else if (draggedIndex < dragOverIndex) {
-                // Dragging down: tracks between original position and current hover position slide UP
+                // Dragging down: adjacent tracks slide UP to fill the space
                 if (i > draggedIndex && i <= dragOverIndex) {
                   transformStyle = {
                     transform: "translateY(-66px)",
-                    transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    transition: "transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                     willChange: "transform",
                   };
                 }
               } else {
-                // Dragging up: tracks between current hover position and original position slide DOWN
+                // Dragging up: adjacent tracks slide DOWN to fill the space
                 if (i >= dragOverIndex && i < draggedIndex) {
                   transformStyle = {
                     transform: "translateY(66px)",
-                    transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    transition: "transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                     willChange: "transform",
                   };
                 }
@@ -318,7 +320,7 @@ export function PlaylistView({
             } else {
               transformStyle = {
                 transform: "translateY(0px)",
-                transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                transition: "transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                 willChange: "transform",
               };
             }
@@ -330,12 +332,13 @@ export function PlaylistView({
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, i)}
                 onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={(e) => handleDrop(e, i)}
                 onDragEnd={handleDragEnd}
                 style={transformStyle}
-                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl select-none ${
+                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl select-none transition-opacity duration-150 ${
                   isCurrent || isSelected ? "" : "hover:bg-white/[0.03]"
                 } ${track.previewUrl ? "cursor-pointer" : ""} ${
-                  draggedIndex === i ? "opacity-50 bg-deezer/10 scale-[0.98] border border-dashed border-deezer/30" : ""
+                  draggedIndex === i ? "opacity-0 pointer-events-none scale-95" : ""
                 }`}
               >
                 {/* Grip Handle */}
