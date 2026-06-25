@@ -279,6 +279,8 @@ export function PlaylistView({
           <span className="text-center"></span>
         </div>
 
+        {/* Track Rows */}
+        <div className="flex flex-col gap-0.5">
           {tracks.map((track, i) => {
             const isCurrent = playingTrack?.id === track.id;
             const isCurrentPlaying = isCurrent && isPlaying;
