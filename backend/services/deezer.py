@@ -1,4 +1,6 @@
 import json
+import re
+import time
 import asyncio
 from typing import List, Optional
 import httpx
@@ -50,12 +52,49 @@ async def set_cached_track(artist: str, title: str, track_data: Optional[dict]) 
         logger.warning("Redis write error for key '%s': %s", key, e)
 
 
+def is_preview_url_valid(url: str) -> bool:
+    if not url:
+        return False
+    match = re.search(r"exp=(\d+)", url)
+    if not match:
+        return True
+    try:
+        expiry = int(match.group(1))
+        return expiry > (time.time() + 300)
+    except ValueError:
+        return False
+
+
+async def refresh_deezer_preview(client: httpx.AsyncClient, track_id: int) -> Optional[str]:
+    try:
+        response = await client.get(
+            f"https://api.deezer.com/track/{track_id}",
+            timeout=5.0
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("preview", "")
+    except Exception as e:
+        logger.warning("Failed to refresh preview for track %s: %s", track_id, e)
+    return None
+
+
 async def search_deezer_track(
     client: httpx.AsyncClient, title: str, artist: str
 ) -> Optional[dict]:
     # Check Redis cache first
     is_cached, cached_val = await get_cached_track(artist, title)
     if is_cached:
+        if cached_val:
+            preview_url = cached_val.get("previewUrl", "")
+            if preview_url and not is_preview_url_valid(preview_url):
+                track_id = cached_val.get("id")
+                if track_id:
+                    logger.info("Cached preview URL expired for track %s. Refreshing...", track_id)
+                    new_preview = await refresh_deezer_preview(client, track_id)
+                    if new_preview:
+                        cached_val["previewUrl"] = new_preview
+                        await set_cached_track(artist, title, cached_val)
         return cached_val
 
     query = f"{artist} {title}"
