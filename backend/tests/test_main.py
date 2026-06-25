@@ -76,12 +76,16 @@ def test_generate_success(monkeypatch):
     # Ensure OPENROUTER_API_KEY environment variable is mock-configured
     monkeypatch.setenv("OPENROUTER_API_KEY", "fake-test-key")
 
+    import time
+    start_time = time.perf_counter()
     response = client.post(
         "/api/generate",
         json={"prompt": "Peaceful morning", "count": 1, "genre": "rock"}
     )
+    duration = time.perf_counter() - start_time
 
     assert response.status_code == 200
+    assert duration < 3.5
     data = response.json()
     assert data["name"] == "Test Playlist"
     assert data["total"] == 1

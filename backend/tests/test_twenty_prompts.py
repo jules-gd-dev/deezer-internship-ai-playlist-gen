@@ -81,102 +81,72 @@ def mock_external_calls(monkeypatch):
 
 # 20 separate tests with different prompts all requesting exactly 20 tracks
 
-def test_prompt_1_acoustic_rain():
-    response = client.post("/api/generate", json={"prompt": "Warm acoustic selections for a rainy day", "count": 20})
+def check_generation(prompt, count=20):
+    import time
+    start_time = time.perf_counter()
+    response = client.post("/api/generate", json={"prompt": prompt, "count": count})
+    duration = time.perf_counter() - start_time
     assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    assert len(response.json()["tracks"]) == count
+    assert duration < 3.5
+
+def test_prompt_1_acoustic_rain():
+    check_generation("Warm acoustic selections for a rainy day")
 
 def test_prompt_2_coding_beats():
-    response = client.post("/api/generate", json={"prompt": "Deep electronic beats for late night coding focus", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Deep electronic beats for late night coding focus")
 
 def test_prompt_3_hiphop_drive():
-    response = client.post("/api/generate", json={"prompt": "Golden era hip-hop classics for a highway drive", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Golden era hip-hop classics for a highway drive")
 
 def test_prompt_4_french_acoustic():
-    response = client.post("/api/generate", json={"prompt": "Chill and melancholic French acoustic songs", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Chill and melancholic French acoustic songs")
 
 def test_prompt_5_workout_rock():
-    response = client.post("/api/generate", json={"prompt": "High energy rock for weightlifting sessions", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("High energy rock for weightlifting sessions")
 
 def test_prompt_6_sunday_jazz():
-    response = client.post("/api/generate", json={"prompt": "Relaxing jazz for a Sunday brunch", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Relaxing jazz for a Sunday brunch")
 
 def test_prompt_7_classical_study():
-    response = client.post("/api/generate", json={"prompt": "Classical music for intense studying", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Classical music for intense studying")
 
 def test_prompt_8_synthwave_night():
-    response = client.post("/api/generate", json={"prompt": "Retro synthwave for driving at night", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Retro synthwave for driving at night")
 
 def test_prompt_9_party_pop():
-    response = client.post("/api/generate", json={"prompt": "Energetic pop hits for a house party", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Energetic pop hits for a house party")
 
 def test_prompt_10_ambient_sleep():
-    response = client.post("/api/generate", json={"prompt": "Slow and atmospheric ambient soundscapes", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Slow and atmospheric ambient soundscapes")
 
 def test_prompt_11_metal_focus():
-    response = client.post("/api/generate", json={"prompt": "Heavy metal for coding under pressure", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Heavy metal for coding under pressure")
 
 def test_prompt_12_sunny_indie():
-    response = client.post("/api/generate", json={"prompt": "Upbeat indie folk for a sunny morning", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Upbeat indie folk for a sunny morning")
 
 def test_prompt_13_romantic_rb():
-    response = client.post("/api/generate", json={"prompt": "Smooth R&B for a romantic dinner", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Smooth R&B for a romantic dinner")
 
 def test_prompt_14_cardio_house():
-    response = client.post("/api/generate", json={"prompt": "Deep house music for workout cardio", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Deep house music for workout cardio")
 
 def test_prompt_15_rock_covers():
-    response = client.post("/api/generate", json={"prompt": "Acoustic covers of popular rock songs", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Acoustic covers of popular rock songs")
 
 def test_prompt_16_psychedelic_sixties():
-    response = client.post("/api/generate", json={"prompt": "Psychedelic rock from the late 60s", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Psychedelic rock from the late 60s")
 
 def test_prompt_17_lofi_beats():
-    response = client.post("/api/generate", json={"prompt": "Lofi hiphop beats to relax/study to", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Lofi hiphop beats to relax/study to")
 
 def test_prompt_18_beach_reggae():
-    response = client.post("/api/generate", json={"prompt": "Reggae vibes for a beach day", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Reggae vibes for a beach day")
 
 def test_prompt_19_gaming_soundtrack():
-    response = client.post("/api/generate", json={"prompt": "Epic cinematic soundtrack for gaming", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Epic cinematic soundtrack for gaming")
 
 def test_prompt_20_phonk_gym():
-    response = client.post("/api/generate", json={"prompt": "Aggressive phonk for gym motivation", "count": 20})
-    assert response.status_code == 200
-    assert len(response.json()["tracks"]) == 20
+    check_generation("Aggressive phonk for gym motivation")
+
