@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Play, Pause, ExternalLink, Clock, Music, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import { Play, Pause, ExternalLink, Clock, Music, Trash2, GripVertical } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
 import { useI18n } from "@/lib/i18n";
 
@@ -13,7 +13,6 @@ interface PlaylistViewProps {
   selectedTrackIds?: number[];
   onToggleSelect?: (track: EnrichedTrack) => void;
   onDeleteTrack?: (trackId: number) => void;
-  onMoveTrack?: (index: number, direction: "up" | "down") => void;
   onReorderTracks?: (fromIndex: number, toIndex: number) => void;
 }
 
@@ -24,7 +23,6 @@ export function PlaylistView({
   selectedTrackIds = [],
   onToggleSelect,
   onDeleteTrack,
-  onMoveTrack,
   onReorderTracks,
 }: PlaylistViewProps) {
   const { t } = useI18n();
@@ -32,6 +30,7 @@ export function PlaylistView({
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const displayName = (() => {
     if (!name) return t("title");
@@ -155,8 +154,8 @@ export function PlaylistView({
 
   // Dynamic grid classes
   const gridClass = selectable
-    ? "grid grid-cols-[20px_24px_30px_1fr_60px] sm:grid-cols-[20px_24px_40px_1fr_1fr_50px_70px]"
-    : "grid grid-cols-[20px_30px_1fr_60px] sm:grid-cols-[20px_40px_1fr_1fr_50px_70px]";
+    ? "grid grid-cols-[20px_24px_30px_1fr_45px] sm:grid-cols-[20px_24px_40px_1fr_1fr_50px_50px]"
+    : "grid grid-cols-[20px_30px_1fr_45px] sm:grid-cols-[20px_40px_1fr_1fr_50px_50px]";
 
   // Drag and drop event handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -165,16 +164,21 @@ export function PlaylistView({
     e.dataTransfer.setData("text/plain", index.toString());
   };
 
-  const handleDragEnter = (e: React.DragEvent, targetIndex: number) => {
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
-    if (onReorderTracks) {
-      onReorderTracks(draggedIndex, targetIndex);
-      setDraggedIndex(targetIndex);
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
     }
   };
 
   const handleDragEnd = () => {
+    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+      if (onReorderTracks) {
+        onReorderTracks(draggedIndex, dragOverIndex);
+      }
+    }
     setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   return (
@@ -275,12 +279,26 @@ export function PlaylistView({
           <span className="text-center"></span>
         </div>
 
-        {/* Track Rows */}
-        <div className="flex flex-col gap-0.5">
           {tracks.map((track, i) => {
             const isCurrent = playingTrack?.id === track.id;
             const isCurrentPlaying = isCurrent && isPlaying;
             const isSelected = selectedTrackIds.includes(track.id);
+
+            // Compute shift offset class to animate other items sliding away
+            let shiftClass = "transition-all duration-200 ease-in-out translate-y-0";
+            if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+              if (draggedIndex < dragOverIndex) {
+                // Dragging down: tracks between original position and current hover position slide UP
+                if (i > draggedIndex && i <= dragOverIndex) {
+                  shiftClass = "transition-all duration-200 ease-in-out -translate-y-[66px]";
+                }
+              } else {
+                // Dragging up: tracks between current hover position and original position slide DOWN
+                if (i >= dragOverIndex && i < draggedIndex) {
+                  shiftClass = "transition-all duration-200 ease-in-out translate-y-[66px]";
+                }
+              }
+            }
 
             return (
               <div
@@ -288,13 +306,12 @@ export function PlaylistView({
                 onClick={() => track.previewUrl && togglePlay(track)}
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, i)}
-                onDragEnter={(e) => handleDragEnter(e, i)}
+                onDragOver={(e) => handleDragOver(e, i)}
                 onDragEnd={handleDragEnd}
-                onDragOver={(e) => e.preventDefault()}
-                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl transition-all duration-200 group select-none ${
+                className={`${gridClass} ${shiftClass} gap-4 items-center px-4 py-3 rounded-xl select-none ${
                   isCurrent || isSelected ? "" : "hover:bg-white/[0.03]"
                 } ${track.previewUrl ? "cursor-pointer" : ""} ${
-                  draggedIndex === i ? "opacity-30 bg-deezer/10 scale-[0.98] border border-dashed border-deezer/30" : ""
+                  draggedIndex === i ? "opacity-20 bg-deezer/10 scale-[0.98] border border-dashed border-deezer/30" : ""
                 }`}
               >
                 {/* Grip Handle */}
@@ -409,32 +426,6 @@ export function PlaylistView({
 
                 {/* Quick actions */}
                 <div className="flex items-center justify-center gap-1.5 shrink-0">
-                  {onMoveTrack && (
-                    <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMoveTrack(i, "up");
-                        }}
-                        disabled={i === 0}
-                        className="p-0.5 text-white/30 hover:text-white transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
-                        title={t("move_up")}
-                      >
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMoveTrack(i, "down");
-                        }}
-                        disabled={i === tracks.length - 1}
-                        className="p-0.5 text-white/30 hover:text-white transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
-                        title={t("move_down")}
-                      >
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
                   {onDeleteTrack && (
                     <button
                       onClick={(e) => {

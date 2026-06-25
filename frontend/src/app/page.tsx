@@ -104,31 +104,6 @@ export default function Home() {
     });
   };
 
-  const handleMoveTrack = (index: number, direction: "up" | "down") => {
-    setTracks(prev => {
-      const updated = [...prev];
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      if (targetIndex >= 0 && targetIndex < updated.length) {
-        const temp = updated[index];
-        updated[index] = updated[targetIndex];
-        updated[targetIndex] = temp;
-      }
-
-      setHistory(prevHistory => {
-        const updatedHistory = prevHistory.map(entry => {
-          if (entry.prompt === prompt) {
-            return { ...entry, tracks: updated };
-          }
-          return entry;
-        });
-        localStorage.setItem("playlist_history", JSON.stringify(updatedHistory));
-        return updatedHistory;
-      });
-
-      return updated;
-    });
-  };
-
   const handleReorderTracks = (fromIndex: number, toIndex: number) => {
     setTracks(prev => {
       const updated = [...prev];
@@ -398,7 +373,6 @@ export default function Home() {
               tracks={tracks}
               name={playlistName}
               onDeleteTrack={handleDeleteTrack}
-              onMoveTrack={handleMoveTrack}
               onReorderTracks={handleReorderTracks}
             />
           ) : (
