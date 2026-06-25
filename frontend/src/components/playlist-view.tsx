@@ -9,6 +9,8 @@ import { useI18n } from "@/lib/i18n";
 interface PlaylistViewProps {
   tracks: EnrichedTrack[];
   name?: string;
+  collageCovers?: string[];
+  isLogoWhite?: boolean;
   selectable?: boolean;
   selectedTrackIds?: number[];
   onToggleSelect?: (track: EnrichedTrack) => void;
@@ -19,6 +21,8 @@ interface PlaylistViewProps {
 export function PlaylistView({
   tracks,
   name,
+  collageCovers: passedCollageCovers,
+  isLogoWhite: passedIsLogoWhite,
   selectable = false,
   selectedTrackIds = [],
   onToggleSelect,
@@ -49,15 +53,19 @@ export function PlaylistView({
   const trackIdsKey = tracks.map((t) => t.id).sort().join(",");
 
   useEffect(() => {
-    const unique = tracks
-      .map((t) => t.albumCover)
-      .filter((cover, index, self) => cover && self.indexOf(cover) === index)
-      .slice(0, 4);
-    setCollageCovers(unique);
-  }, [trackIdsKey]);
+    if (passedCollageCovers && passedCollageCovers.length > 0) {
+      setCollageCovers(passedCollageCovers);
+    } else {
+      const unique = tracks
+        .map((t) => t.albumCover)
+        .filter((cover, index, self) => cover && self.indexOf(cover) === index)
+        .slice(0, 4);
+      setCollageCovers(unique);
+    }
+  }, [passedCollageCovers, trackIdsKey]);
 
   // Deterministic check to pick solid white or solid black watermark for the cover art
-  const isLogoWhite = (() => {
+  const isLogoWhite = passedIsLogoWhite !== undefined ? passedIsLogoWhite : (() => {
     if (!collageCovers.length) return true;
     const key = collageCovers[0] || "";
     let hash = 0;

@@ -41,6 +41,8 @@ interface HistoryEntry {
   genre: string;
   tracks: EnrichedTrack[];
   timestamp: number;
+  collageCovers?: string[];
+  isLogoWhite?: boolean;
 }
 
 export default function Home() {
@@ -52,6 +54,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [activeCollageCovers, setActiveCollageCovers] = useState<string[]>([]);
+  const [activeIsLogoWhite, setActiveIsLogoWhite] = useState<boolean>(true);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -70,13 +74,22 @@ export default function Home() {
     }
   }, []);
 
-  const saveToHistory = (name: string, pmt: string, gnr: string, trks: EnrichedTrack[]) => {
+  const saveToHistory = (
+    name: string,
+    pmt: string,
+    gnr: string,
+    trks: EnrichedTrack[],
+    collageCovers: string[],
+    isLogoWhite: boolean
+  ) => {
     const newEntry: HistoryEntry = {
       id: Math.random().toString(36).substring(2, 9),
       name: name || pmt || "Unnamed Playlist",
       prompt: pmt,
       genre: gnr,
       tracks: trks,
+      collageCovers,
+      isLogoWhite,
       timestamp: Date.now()
     };
     setHistory(prev => {
@@ -132,6 +145,24 @@ export default function Home() {
     setPlaylistName(entry.name);
     setPrompt(entry.prompt);
     setGenre(entry.genre);
+
+    const unique = entry.collageCovers || entry.tracks
+      .map((t) => t.albumCover)
+      .filter((cover, index, self) => cover && self.indexOf(cover) === index)
+      .slice(0, 4);
+
+    const isWhite = entry.isLogoWhite !== undefined ? entry.isLogoWhite : (() => {
+      if (!unique.length) return true;
+      const key = unique[0] || "";
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) {
+        hash = key.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return Math.abs(hash) % 2 === 0;
+    })();
+
+    setActiveCollageCovers(unique);
+    setActiveIsLogoWhite(isWhite);
     setError(null);
   };
 
@@ -145,6 +176,8 @@ export default function Home() {
     setPlaylistName("");
     setPrompt("");
     setGenre("any");
+    setActiveCollageCovers([]);
+    setActiveIsLogoWhite(true);
     setError(null);
   };
 
@@ -182,7 +215,25 @@ export default function Home() {
 
       setTracks(data.tracks);
       setPlaylistName(data.name || "");
-      saveToHistory(data.name || "", userPrompt, genre, data.tracks);
+
+      const unique = data.tracks
+        .map((t: any) => t.albumCover)
+        .filter((cover: any, index: number, self: any[]) => cover && self.indexOf(cover) === index)
+        .slice(0, 4);
+
+      const isWhite = (() => {
+        if (!unique.length) return true;
+        const key = unique[0] || "";
+        let hash = 0;
+        for (let i = 0; i < key.length; i++) {
+          hash = key.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return Math.abs(hash) % 2 === 0;
+      })();
+
+      setActiveCollageCovers(unique);
+      setActiveIsLogoWhite(isWhite);
+      saveToHistory(data.name || "", userPrompt, genre, data.tracks, unique, isWhite);
     } catch (err: any) {
       console.error("Generation failed:", err);
       setError(err.message || "Generation failed");
@@ -320,37 +371,83 @@ export default function Home() {
                     </button>
                   </div>
                   <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
-                    {history.map((entry) => (
-                      <button
-                        key={entry.id}
-                        onClick={() => handleLoadHistory(entry)}
-                        className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group gap-3"
-                      >
-                        <div className="flex-1 min-w-0 flex flex-col">
-                          <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
-                            {entry.name}
-                          </span>
-                          <span className="text-[11px] text-white/30 truncate mt-0.5">
-                            {entry.prompt}
-                          </span>
-                        </div>
-                        
-                        {/* Thumbnail of the playlist (first track cover) */}
-                        <div className="relative w-8 h-8 rounded-md overflow-hidden shrink-0 bg-white/[0.02] border border-white/[0.08] flex items-center justify-center shadow-sm">
-                          {entry.tracks[0]?.albumCover ? (
-                            <Image
-                              src={entry.tracks[0].albumCover}
-                              alt={entry.name}
-                              fill
-                              className="object-cover"
-                              sizes="32px"
-                            />
-                          ) : (
-                            <Music className="w-3.5 h-3.5 text-white/20" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                    {history.map((entry) => {
+                      const displayCovers = entry.collageCovers || entry.tracks
+                        .map((t) => t.albumCover)
+                        .filter((cover, index, self) => cover && self.indexOf(cover) === index)
+                        .slice(0, 4);
+
+                      const displayIsLogoWhite = entry.isLogoWhite !== undefined ? entry.isLogoWhite : (() => {
+                        if (!displayCovers.length) return true;
+                        const key = displayCovers[0] || "";
+                        let hash = 0;
+                        for (let i = 0; i < key.length; i++) {
+                          hash = key.charCodeAt(i) + ((hash << 5) - hash);
+                        }
+                        return Math.abs(hash) % 2 === 0;
+                      })();
+
+                      return (
+                        <button
+                          key={entry.id}
+                          onClick={() => handleLoadHistory(entry)}
+                          className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group gap-3"
+                        >
+                          <div className="flex-1 min-w-0 flex flex-col">
+                            <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
+                              {entry.name}
+                            </span>
+                            <span className="text-[11px] text-white/30 truncate mt-0.5">
+                              {entry.prompt}
+                            </span>
+                          </div>
+                          
+                          {/* Thumbnail of the playlist (collage + Deezer logo) */}
+                          <div className="relative w-9 h-9 rounded-md overflow-hidden shrink-0 bg-white/[0.02] border border-white/[0.08] flex items-center justify-center shadow-md">
+                            {displayCovers.length >= 4 ? (
+                              <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+                                {displayCovers.map((cover, i) => (
+                                  <div key={i} className="relative w-full h-full">
+                                    <Image
+                                      src={cover}
+                                      alt="Cover art segment"
+                                      fill
+                                      className="object-cover"
+                                      sizes="18px"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : displayCovers.length > 0 ? (
+                              <div className="relative w-full h-full">
+                                <Image
+                                  src={displayCovers[0]}
+                                  alt={entry.name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="36px"
+                                />
+                              </div>
+                            ) : (
+                              <Music className="w-4 h-4 text-white/20" />
+                            )}
+
+                            {/* Small Deezer Logo Watermark Overlay */}
+                            {displayCovers.length > 0 && (
+                              <div className={`absolute bottom-0.5 right-0.5 select-none pointer-events-none ${
+                                displayIsLogoWhite 
+                                  ? "text-white drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.85)]" 
+                                  : "text-black drop-shadow-[0_1px_1.5px_rgba(255,255,255,0.85)]"
+                              }`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="3" viewBox="0 0 127 20" fill="none">
+                                  <path fill="currentColor" fillRule="evenodd" d="M0 0h10.065c6.232 0 10.639 4.13 10.639 10s-4.407 10-10.639 10H0V0Zm7.823 14.597h1.825c1.956 0 2.999-1.298 2.999-4.597 0-3.299-1.043-4.597-3-4.597H7.824v9.194ZM40.153 20H23.62V0h16.532v5.403h-8.735v2.311h8.213v4.416h-8.213v2.467h8.735V20Zm20.31 0H43.93V0h16.532v5.403h-8.736v2.311h8.214v4.416h-8.214v2.467h8.736V20Zm66.159 0c-1.126-3.058-2.702-6.321-4.821-9.979 2.479-.724 3.961-2.28 3.961-4.67 0-3.637-3.364-5.351-8.683-5.351h-10.952v20h7.823v-8.273c1.738 2.916 3.018 5.667 3.859 8.273h8.813ZM113.95 8.935V5.403h2.712c1.147 0 1.799.623 1.799 1.766s-.652 1.766-1.799 1.766h-2.712ZM102.328 20H85.797V0h16.531v5.403h-8.735v2.311h8.214v4.416h-8.214v2.467h8.735V20ZM64.397 5.403h8.071c-3.349 2.729-6.105 5.82-8.228 9.194V20h17.758v-5.403h-8.876c2.034-2.947 4.876-5.882 8.876-9.194V0H64.397v5.403Z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -385,6 +482,8 @@ export default function Home() {
             <PlaylistView
               tracks={tracks}
               name={playlistName}
+              collageCovers={activeCollageCovers}
+              isLogoWhite={activeIsLogoWhite}
               onDeleteTrack={handleDeleteTrack}
               onReorderTracks={handleReorderTracks}
             />
