@@ -18,7 +18,7 @@ from config import (
     get_groq_model,
     get_groq_fallback_model,
 )
-from models.schemas import GenerateRequest, GenerateResponse
+from models.schemas import GenerateRequest, GenerateResponse, RefreshTracksRequest, RefreshTracksResponse
 from services.playlist import get_git_commit, deduplicate_tracks
 from services.deezer import enrich_tracks
 from services.llm import build_system_prompt, call_llm, check_prompt_safety
@@ -223,3 +223,25 @@ async def generate(req: GenerateRequest, request: Request):
     except Exception as e:
         logger.error("Generation failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/tracks/refresh", response_model=RefreshTracksResponse)
+async def refresh_tracks(req: RefreshTracksRequest):
+    from services.deezer import is_preview_url_valid, refresh_deezer_preview, set_cached_track
+
+    refreshed_tracks = []
+    async with httpx.AsyncClient() as client:
+        for track in req.tracks:
+            track_data = track.model_dump()
+            preview_url = track_data.get("previewUrl", "")
+            if preview_url and not is_preview_url_valid(preview_url):
+                track_id = track.id
+                logger.info("Refreshing expired preview URL for track %s (%s)", track_id, track.title)
+                new_preview = await refresh_deezer_preview(client, track_id)
+                if new_preview:
+                    track_data["previewUrl"] = new_preview
+                    await set_cached_track(track.artist, track.title, track_data)
+            
+            refreshed_tracks.append(track_data)
+            
+    return RefreshTracksResponse(tracks=refreshed_tracks)

@@ -38,3 +38,11 @@ class GenerateResponse(BaseModel):
     matched: int
     rejected: Optional[bool] = False
     error: Optional[str] = None
+
+
+class RefreshTracksRequest(BaseModel):
+    tracks: List[EnrichedTrack]
+
+
+class RefreshTracksResponse(BaseModel):
+    tracks: List[EnrichedTrack]

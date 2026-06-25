@@ -139,7 +139,7 @@ export default function Home() {
     });
   };
 
-  const handleLoadHistory = (entry: HistoryEntry) => {
+  const handleLoadHistory = async (entry: HistoryEntry) => {
     if (loading) return;
     setTracks(entry.tracks);
     setPlaylistName(entry.name);
@@ -164,6 +164,31 @@ export default function Home() {
     setActiveCollageCovers(unique);
     setActiveIsLogoWhite(isWhite);
     setError(null);
+
+    try {
+      const res = await fetch("/api/tracks/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tracks: entry.tracks }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const refreshedTracks = data.tracks;
+        setTracks(refreshedTracks);
+        setHistory((prevHistory) => {
+          const updatedHistory = prevHistory.map((h) => {
+            if (h.id === entry.id) {
+              return { ...h, tracks: refreshedTracks };
+            }
+            return h;
+          });
+          localStorage.setItem("playlist_history", JSON.stringify(updatedHistory));
+          return updatedHistory;
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to background refresh preview URLs:", err);
+    }
   };
 
   const handleClearHistory = () => {
