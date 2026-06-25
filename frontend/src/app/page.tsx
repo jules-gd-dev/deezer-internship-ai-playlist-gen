@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from "react";
+import Image from "next/image";
 import { PlaylistView } from "@/components/playlist-view";
 import { WaveformLoader } from "@/components/waveform-loader";
 import { GenreDropdown } from "@/components/genre-dropdown";
@@ -323,9 +324,9 @@ export default function Home() {
                       <button
                         key={entry.id}
                         onClick={() => handleLoadHistory(entry)}
-                        className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group"
+                        className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group gap-3"
                       >
-                        <div className="flex flex-col min-w-0 pr-2">
+                        <div className="flex-1 min-w-0 flex flex-col">
                           <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
                             {entry.name}
                           </span>
@@ -333,9 +334,21 @@ export default function Home() {
                             {entry.prompt}
                           </span>
                         </div>
-                        <span className="text-[11px] text-deezer font-semibold shrink-0">
-                          {entry.tracks.length} {t("tracks")}
-                        </span>
+                        
+                        {/* Thumbnail of the playlist (first track cover) */}
+                        <div className="relative w-8 h-8 rounded-md overflow-hidden shrink-0 bg-white/[0.02] border border-white/[0.08] flex items-center justify-center shadow-sm">
+                          {entry.tracks[0]?.albumCover ? (
+                            <Image
+                              src={entry.tracks[0].albumCover}
+                              alt={entry.name}
+                              fill
+                              className="object-cover"
+                              sizes="32px"
+                            />
+                          ) : (
+                            <Music className="w-3.5 h-3.5 text-white/20" />
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
