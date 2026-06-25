@@ -307,40 +307,57 @@ export default function Home() {
           )}
 
           {/* History Panel */}
-          {history.length > 0 && (
+          {(history.length > 0 || hasResult) && (
             <div className="mt-5 bg-[#121215]/50 border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-3">
-              <div className="flex items-center justify-between border-b border-white/[0.04] pb-2">
-                <h3 className="text-[11px] font-bold tracking-[0.1em] uppercase text-white/30">
-                  {t("history_title")}
-                </h3>
-                <button
-                  onClick={handleClearHistory}
-                  className="text-[10px] text-white/30 hover:text-red-400 font-bold transition-all cursor-pointer"
-                >
-                  {t("clear_history")}
-                </button>
-              </div>
-              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
-                {history.map((entry) => (
+              {history.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/[0.04] pb-2">
+                    <h3 className="text-[11px] font-bold tracking-[0.1em] uppercase text-white/30">
+                      {t("history_title")}
+                    </h3>
+                    <button
+                      onClick={handleClearHistory}
+                      className="text-[10px] text-white/30 hover:text-red-400 font-bold transition-all cursor-pointer"
+                    >
+                      {t("clear_history")}
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                    {history.map((entry) => (
+                      <button
+                        key={entry.id}
+                        onClick={() => handleLoadHistory(entry)}
+                        className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group"
+                      >
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
+                            {entry.name}
+                          </span>
+                          <span className="text-[11px] text-white/30 truncate mt-0.5">
+                            {entry.prompt}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-deezer font-semibold shrink-0">
+                          {entry.tracks.length} {t("tracks")}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* New Playlist Button */}
+              {hasResult && (
+                <div className={`pt-2 ${history.length > 0 ? "border-t border-white/[0.04] mt-1" : ""} flex justify-end`}>
                   <button
-                    key={entry.id}
-                    onClick={() => handleLoadHistory(entry)}
-                    className="text-left text-[13px] text-white/55 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.04] rounded-lg p-2.5 transition-all cursor-pointer duration-150 active:scale-[0.99] flex items-center justify-between group"
+                    onClick={handleNewSession}
+                    className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-white/[0.03] text-white/60 hover:bg-white/[0.06] hover:text-white text-[11px] font-bold transition-all cursor-pointer border border-white/[0.02]"
                   >
-                    <div className="flex flex-col min-w-0 pr-2">
-                      <span className="font-semibold text-white/80 truncate group-hover:text-white transition-all">
-                        {entry.name}
-                      </span>
-                      <span className="text-[11px] text-white/30 truncate mt-0.5">
-                        {entry.prompt}
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-deezer font-semibold shrink-0">
-                      {entry.tracks.length} {t("tracks")}
-                    </span>
+                    <Plus className="w-3 h-3" />
+                    {t("new_playlist")}
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -356,19 +373,7 @@ export default function Home() {
               <WaveformLoader />
             </div>
           ) : tracks.length > 0 ? (
-            <div className="flex-grow flex flex-col justify-between gap-6">
-              <PlaylistView tracks={tracks} name={playlistName} onDeleteTrack={handleDeleteTrack} onMoveTrack={handleMoveTrack} />
-              
-              <div className="flex justify-end pt-4 border-t border-white/[0.04] shrink-0">
-                <button
-                  onClick={handleNewSession}
-                  className="flex items-center gap-2 px-4 h-9 rounded-lg bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white text-xs font-bold transition-all cursor-pointer border border-white/[0.04]"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t("new_playlist")}
-                </button>
-              </div>
-            </div>
+            <PlaylistView tracks={tracks} name={playlistName} onDeleteTrack={handleDeleteTrack} onMoveTrack={handleMoveTrack} />
           ) : (
             /* Elegant Workspace Empty State (Fallback/Legacy) */
             <div className="flex-grow flex flex-col items-center justify-center text-center p-8">
