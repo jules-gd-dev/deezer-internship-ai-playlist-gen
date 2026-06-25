@@ -159,9 +159,13 @@ export function PlaylistView({
 
   // Drag and drop event handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", index.toString());
+    
+    // Set dragged index in a setTimeout so the browser takes a snapshot of the fully visible row first
+    setTimeout(() => {
+      setDraggedIndex(index);
+    }, 0);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -171,16 +175,12 @@ export function PlaylistView({
     }
   };
 
-  const handleDrop = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== index) {
+  const handleDragEnd = () => {
+    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
       if (onReorderTracks) {
-        onReorderTracks(draggedIndex, index);
+        onReorderTracks(draggedIndex, dragOverIndex);
       }
     }
-  };
-
-  const handleDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -332,7 +332,6 @@ export function PlaylistView({
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, i)}
                 onDragOver={(e) => handleDragOver(e, i)}
-                onDrop={(e) => handleDrop(e, i)}
                 onDragEnd={handleDragEnd}
                 style={transformStyle}
                 className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl select-none transition-opacity duration-150 ${
