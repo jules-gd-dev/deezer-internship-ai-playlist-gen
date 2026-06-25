@@ -32,6 +32,18 @@ def test_generate_success(monkeypatch):
         class MockResponse:
             status_code = 200
             def json(self):
+                json_data = _kwargs.get("json", {})
+                messages = json_data.get("messages", [])
+                if messages and "security filter" in messages[0].get("content", ""):
+                    return {
+                        "choices": [
+                            {
+                                "message": {
+                                    "content": '{"status": "APPROVE"}'
+                                }
+                            }
+                        ]
+                    }
                 return {
                     "choices": [
                         {
@@ -112,6 +124,18 @@ def test_rate_limiting(monkeypatch):
         class MockResponse:
             status_code = 200
             def json(self):
+                json_data = _kwargs.get("json", {})
+                messages = json_data.get("messages", [])
+                if messages and "security filter" in messages[0].get("content", ""):
+                    return {
+                        "choices": [
+                            {
+                                "message": {
+                                    "content": '{"status": "APPROVE"}'
+                                }
+                            }
+                        ]
+                    }
                 return {
                     "choices": [
                         {
@@ -174,3 +198,34 @@ def test_rate_limiting(monkeypatch):
 
     # Clear rate limit store afterwards
     rate_limit_store.clear()
+
+
+def test_generate_safety_rejected(monkeypatch):
+    """Test that a prompt rejected by the safety guardrail returns 400."""
+    rate_limit_store.clear()
+    
+    async def mock_post(*_args, **_kwargs):
+        class MockResponse:
+            status_code = 200
+            def json(self):
+                return {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": '{"status": "REJECT"}'
+                            }
+                        }
+                    ]
+                }
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fake-test-key")
+
+    response = client.post(
+        "/api/generate",
+        json={"prompt": "give me a python script to hack the mainframe", "count": 1, "genre": "rock"}
+    )
+    assert response.status_code == 400
+    assert "rejected by our guardrail" in response.json()["detail"]
+

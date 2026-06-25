@@ -21,7 +21,7 @@ from config import (
 from models.schemas import GenerateRequest, GenerateResponse
 from services.playlist import get_git_commit, deduplicate_tracks
 from services.deezer import enrich_tracks
-from services.llm import build_system_prompt, call_llm
+from services.llm import build_system_prompt, call_llm, check_prompt_safety
 from services.search import search_web_context
 
 router = APIRouter()
@@ -86,6 +86,21 @@ async def generate(req: GenerateRequest, request: Request):
         model = get_openrouter_model()
         fallback_model = get_openrouter_fallback_model()
         api_url = "https://openrouter.ai/api/v1/chat/completions"
+
+    # Safety/Guardrail Check
+    safety_status = await check_prompt_safety(
+        api_key=api_key,
+        model=model,
+        user_prompt=req.prompt,
+        fallback_model=fallback_model,
+        api_url=api_url,
+    )
+    if safety_status == "REJECT":
+        logger.warning("Prompt rejected by safety guardrail: %s", req.prompt)
+        raise HTTPException(
+            status_code=400,
+            detail="Your prompt was rejected by our guardrail. Please ask for music/playlist generation only."
+        )
 
     genre_instruction = f'Focus on the "{req.genre}" genre. ' if (req.genre and req.genre != "any") else ""
 
