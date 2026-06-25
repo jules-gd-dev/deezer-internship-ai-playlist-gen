@@ -286,7 +286,7 @@ export default function Home() {
           </div>
 
           {/* Prompt suggestions panel for quick starting */}
-          {!(loading || hasResult) && (
+          {!(loading || hasResult) && history.length <= 1 && (
             <div className="mt-5 bg-[#121215]/50 border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-3">
               <h3 className="text-[11px] font-bold tracking-[0.1em] uppercase text-white/30">
                 {t("inspiration_title")}
