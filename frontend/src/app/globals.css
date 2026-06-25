@@ -21,19 +21,23 @@
   --radius-button: 999px;
   --radius-card: 16px;
   --radius-dialog: 24px;
-  --font-sans: var(--font-space-grotesk);
-  --font-body: var(--font-inter);
+  --font-sans: var(--font-inter), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
   --breakpoint-xs: 480px;
 }
 
 body {
-  background: #000000;
+  background: radial-gradient(circle at top, #110820 0%, #000000 100%) no-repeat fixed;
   color: rgba(255,255,255,0.6);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, button, .btn-gradient {
+  font-family: var(--font-sans);
 }
 
 /* ── Card ── */
@@ -182,4 +186,19 @@ body {
 }
 .animate-eq-bar-3 {
   animation: eq-bar-3 0.7s ease-in-out infinite alternate;
+}
+
+/* ── Deezer Oblong Loader Animation ── */
+@keyframes eq-loader-bar {
+  0%, 100% {
+    transform: scaleY(0.15);
+  }
+  50% {
+    transform: scaleY(1.0);
+  }
+}
+
+.animate-eq-loader {
+  animation: eq-loader-bar 1.0s ease-in-out infinite;
+  transform-origin: bottom;
 }

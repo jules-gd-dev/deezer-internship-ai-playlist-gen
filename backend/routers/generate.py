@@ -1,15 +1,64 @@
 import json
+import time
+from collections import defaultdict
+from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from config import logger, MAX_RETRIES, MATCH_THRESHOLD, get_openrouter_api_key, get_openrouter_model
+from config import (
+    logger,
+    MAX_RETRIES,
+    MATCH_THRESHOLD,
+    get_provider,
+    get_openrouter_api_key,
+    get_openrouter_model,
+    get_openrouter_fallback_model,
+    get_groq_api_key,
+    get_groq_model,
+    get_groq_fallback_model,
+)
 from models.schemas import GenerateRequest, GenerateResponse
 from services.playlist import get_git_commit, deduplicate_tracks
 from services.deezer import enrich_tracks
 from services.llm import build_system_prompt, call_llm
+from services.search import search_web_context
 
 router = APIRouter()
+
+# In-memory rate limiting store mapping client IP -> list of timestamps
+rate_limit_store = defaultdict(list)
+
+
+def get_client_ip(request: Request) -> str:
+    """Extract client IP from forwarded headers or request metadata."""
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    
+    x_real_ip = request.headers.get("x-real-ip")
+    if x_real_ip:
+        return x_real_ip
+        
+    return request.client.host if request.client else "unknown"
+
+
+def check_rate_limit(ip: str):
+    """Enforce a rate limit of max 10 requests per hour per IP."""
+    now = time.time()
+    one_hour_ago = now - 3600
+    
+    # Filter out timestamps older than 1 hour
+    rate_limit_store[ip] = [t for t in rate_limit_store[ip] if t > one_hour_ago]
+    
+    if len(rate_limit_store[ip]) >= 10:
+        logger.warning("Rate limit exceeded for IP: %s (10 reqs/hour)", ip)
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Maximum 10 generations per hour."
+        )
+    
+    rate_limit_store[ip].append(now)
 
 
 @router.get("/version")
@@ -18,22 +67,61 @@ def version():
 
 
 @router.post("/api/generate", response_model=GenerateResponse)
-async def generate(req: GenerateRequest):
+async def generate(req: GenerateRequest, request: Request):
     if not req.prompt or not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt is required")
 
-    api_key = get_openrouter_api_key()
-    model = get_openrouter_model()
+    # Enforce rate limit
+    ip = get_client_ip(request)
+    check_rate_limit(ip)
+
+    provider = get_provider()
+    if provider == "groq":
+        api_key = get_groq_api_key()
+        model = get_groq_model()
+        fallback_model = get_groq_fallback_model()
+        api_url = "https://api.groq.com/openai/v1/chat/completions"
+    else:
+        api_key = get_openrouter_api_key()
+        model = get_openrouter_model()
+        fallback_model = get_openrouter_fallback_model()
+        api_url = "https://openrouter.ai/api/v1/chat/completions"
+
     genre_instruction = f'Focus on the "{req.genre}" genre. ' if (req.genre and req.genre != "any") else ""
+
+    # Web search for niche context
+    search_context = ""
+    if req.prompt:
+        search_query = f"{req.prompt} tracks songs artists playlist"
+        search_context = search_web_context(search_query)
+
+    selected_list = None
+    if req.selected_tracks:
+        selected_list = [t.model_dump() for t in req.selected_tracks]
 
     system_prompt = build_system_prompt(
         genre_instruction=genre_instruction,
         user_prompt=req.prompt,
         count=req.count,
+        selected_tracks=selected_list,
+        search_context=search_context if search_context else None,
     )
 
     try:
-        json_data = await call_llm(api_key, model, system_prompt, req.prompt)
+        history_list = None
+        if req.history:
+            history_list = [h.model_dump() for h in req.history]
+
+        json_data = await call_llm(
+            api_key=api_key,
+            model=model,
+            fallback_model=fallback_model,
+            system_prompt=system_prompt,
+            user_prompt=req.prompt,
+            history=history_list,
+            api_url=api_url,
+        )
+        
         playlist_name = json_data.get("name") or json_data.get("playlist_name") or ""
         raw_tracks = json_data.get("tracks") or json_data.get("songs") or json_data.get("playlist") or []
         if not isinstance(raw_tracks, list):
@@ -49,28 +137,56 @@ async def generate(req: GenerateRequest):
         enriched, failed = await enrich_tracks(raw_tracks)
         retries = 0
 
-        while failed and len(enriched) / len(raw_tracks) <= MATCH_THRESHOLD and retries < MAX_RETRIES:
+        # Loop until we have exactly req.count enriched tracks, up to MAX_RETRIES
+        while len(enriched) < req.count and retries < MAX_RETRIES:
             retries += 1
+            gap_count = req.count - len(enriched)
             logger.info(
-                "Retry %d/%d: matched %d/%d tracks. Replacing %d failed tracks.",
-                retries, MAX_RETRIES, len(enriched), len(raw_tracks), len(failed),
+                "Retry %d/%d: have %d/%d tracks. Generating %d more to fill the gap.",
+                retries, MAX_RETRIES, len(enriched), req.count, gap_count,
             )
+            
             retry_prompt = build_system_prompt(
                 genre_instruction=genre_instruction,
                 user_prompt=req.prompt,
-                count=req.count - len(enriched),
+                count=gap_count,
                 is_retry=True,
                 failed_tracks=failed,
+                selected_tracks=selected_list,
+                search_context=search_context if search_context else None,
+                already_matched_tracks=enriched,
             )
+            
             try:
-                retry_json = await call_llm(api_key, model, retry_prompt, req.prompt)
+                # Retries don't send conversation history, just the prompt & replacement instruction
+                retry_json = await call_llm(
+                    api_key=api_key,
+                    model=model,
+                    system_prompt=retry_prompt,
+                    user_prompt=req.prompt,
+                    fallback_model=fallback_model,
+                    api_url=api_url,
+                )
                 retry_raw = retry_json.get("tracks") or retry_json.get("songs") or retry_json.get("playlist") or []
-                if isinstance(retry_raw, list):
+                if isinstance(retry_raw, list) and retry_raw:
+                    # Deduplicate retry tracks against themselves
                     retry_raw = deduplicate_tracks(retry_raw)
-                    retry_enriched, retry_failed = await enrich_tracks(retry_raw)
-                    enriched.extend(retry_enriched)
-                    failed = retry_failed
+                    # Filter out tracks that are already in enriched to avoid duplicates
+                    already_matched_titles = {t["title"].lower().strip() for t in enriched}
+                    retry_raw = [
+                        t for t in retry_raw 
+                        if t.get("title", "").lower().strip() not in already_matched_titles
+                    ]
+                    
+                    if retry_raw:
+                        retry_enriched, retry_failed = await enrich_tracks(retry_raw)
+                        enriched.extend(retry_enriched)
+                        # Accumulate failed tracks so we don't repeat them
+                        failed.extend(retry_failed)
+                    else:
+                        logger.warning("Retry LLM returned only duplicate tracks.")
                 else:
+                    logger.warning("Retry LLM returned no tracks.")
                     break
             except (httpx.RequestError, json.JSONDecodeError, ValueError) as e:
                 logger.error("Retry %d failed: %s", retries, e)
@@ -78,9 +194,9 @@ async def generate(req: GenerateRequest):
 
         return GenerateResponse(
             name=playlist_name,
-            tracks=enriched,
-            total=len(raw_tracks),
-            matched=len(enriched),
+            tracks=enriched[:req.count],
+            total=req.count,
+            matched=min(len(enriched), req.count),
         )
 
     except HTTPException:

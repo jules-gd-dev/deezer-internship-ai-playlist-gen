@@ -2,10 +2,22 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+class TrackInput(BaseModel):
+    title: str
+    artist: str
+
+
 class GenerateRequest(BaseModel):
     prompt: str
     count: int = 20
     genre: Optional[str] = "any"
+    history: Optional[List[Message]] = None
+    selected_tracks: Optional[List[TrackInput]] = None
 
 
 class EnrichedTrack(BaseModel):

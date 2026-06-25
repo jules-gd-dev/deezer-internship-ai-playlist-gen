@@ -52,7 +52,7 @@ export function PlaylistWizard({ onGenerate, loading }: PlaylistWizardProps) {
           type="submit"
           disabled={!hasPrompt || loading}
           className={`
-            h-12 px-7 rounded-xl text-[15px] font-bold tracking-tight
+            h-12 px-7 rounded-xl text-[15px] font-bold tracking-normal
             inline-flex items-center justify-center gap-2.5
             shrink-0 transition-all duration-200 select-none
             ${hasPrompt && !loading

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Play, Pause, ExternalLink, Clock, Music } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
+import { useI18n } from "@/lib/i18n";
 
 interface PlaylistViewProps {
   tracks: EnrichedTrack[];
@@ -20,12 +21,13 @@ export function PlaylistView({
   selectedTrackIds = [],
   onToggleSelect,
 }: PlaylistViewProps) {
+  const { t } = useI18n();
   const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const displayName = (() => {
-    if (!name) return "Generated Playlist";
+    if (!name) return t("title");
     const trimmed = name.trim().replace(/^["']|["']$/g, "");
     if (trimmed.length <= 40) return trimmed;
     for (const sep of [":", " — ", " - ", ", ", " (", " ["]) {
@@ -36,15 +38,26 @@ export function PlaylistView({
     return cut.includes(" ") ? cut.split(" ").slice(0, -1).join(" ") + "…" : cut + "…";
   })();
 
+  // Deterministic check to pick solid white or solid black watermark for the cover art
+  const isLogoWhite = (() => {
+    if (!tracks.length) return true;
+    const key = tracks[0].albumCover || tracks[0].title || "";
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = key.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash) % 2 === 0;
+  })();
+
   // Total duration calculation
   const totalSeconds = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
   const formatTotalDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     if (h > 0) {
-      return `${h} hr ${m} min`;
+      return `${h} ${t("duration_hour")} ${m} ${t("duration_min")}`;
     }
-    return `${m} min`;
+    return `${m} ${t("duration_min")}`;
   };
 
   const formatDuration = (seconds: number) => {
@@ -163,20 +176,26 @@ export function PlaylistView({
           ) : (
             <Music className="w-12 h-12 text-white/10" />
           )}
+
+          {/* Deezer Logo Watermark Overlay */}
+          <div className={`absolute bottom-2.5 right-2.5 select-none pointer-events-none ${
+            isLogoWhite 
+              ? "text-white drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.85)]" 
+              : "text-black drop-shadow-[0_1.5px_3px_rgba(255,255,255,0.85)]"
+          }`}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="56" height="9" viewBox="0 0 127 20" fill="none">
+              <path fill="currentColor" fillRule="evenodd" d="M0 0h10.065c6.232 0 10.639 4.13 10.639 10s-4.407 10-10.639 10H0V0Zm7.823 14.597h1.825c1.956 0 2.999-1.298 2.999-4.597 0-3.299-1.043-4.597-3-4.597H7.824v9.194ZM40.153 20H23.62V0h16.532v5.403h-8.735v2.311h8.213v4.416h-8.213v2.467h8.735V20Zm20.31 0H43.93V0h16.532v5.403h-8.736v2.311h8.214v4.416h-8.214v2.467h8.736V20Zm66.159 0c-1.126-3.058-2.702-6.321-4.821-9.979 2.479-.724 3.961-2.28 3.961-4.67 0-3.637-3.364-5.351-8.683-5.351h-10.952v20h7.823v-8.273c1.738 2.916 3.018 5.667 3.859 8.273h8.813ZM113.95 8.935V5.403h2.712c1.147 0 1.799.623 1.799 1.766s-.652 1.766-1.799 1.766h-2.712ZM102.328 20H85.797V0h16.531v5.403h-8.735v2.311h8.214v4.416h-8.214v2.467h8.735V20ZM64.397 5.403h8.071c-3.349 2.729-6.105 5.82-8.228 9.194V20h17.758v-5.403h-8.876c2.034-2.947 4.876-5.882 8.876-9.194V0H64.397v5.403Z" clipRule="evenodd" />
+            </svg>
+          </div>
         </div>
 
         {/* Playlist metadata */}
         <div className="flex-1 text-center md:text-left min-w-0 flex flex-col justify-end">
-          <span className="text-[11px] font-bold tracking-[0.15em] text-deezer uppercase mb-2">
-            AI Playlist
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-[-0.04em] leading-tight truncate">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-normal leading-tight truncate font-sans">
             {displayName}
           </h2>
           <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 text-xs text-white/40 font-medium">
-            <span>Deezer AI</span>
-            <span>•</span>
-            <span className="text-white/60">{tracks.length} tracks</span>
+            <span className="text-white/60">{tracks.length} {t("tracks")}</span>
             <span>•</span>
             <span>{formatTotalDuration(totalSeconds)}</span>
           </div>
@@ -186,17 +205,17 @@ export function PlaylistView({
             <button
               onClick={playAll}
               disabled={tracks.length === 0}
-              className="h-11 px-6 rounded-lg bg-deezer text-white font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-[#B25CFF] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-deezer/20"
+              className="h-11 px-6 rounded-lg bg-deezer text-white font-bold text-sm tracking-normal flex items-center gap-2 hover:bg-[#B25CFF] active:scale-[0.98] transition-all cursor-pointer shadow-lg shadow-deezer/20"
             >
               {isPlaying ? (
                 <>
                   <Pause className="w-4 h-4" fill="currentColor" />
-                  Pause Preview
+                  {t("pause_preview")}
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
-                  Preview Playlist
+                  {t("preview_playlist")}
                 </>
               )}
             </button>
@@ -214,8 +233,8 @@ export function PlaylistView({
         <div className={`${gridClass} gap-4 px-4 py-2 border-b border-white/[0.04] text-xs font-bold uppercase tracking-wider text-white/30 mb-2`}>
           {selectable && <span className="text-center"></span>}
           <span className="text-center">#</span>
-          <span>Title</span>
-          <span className="hidden sm:block">Album</span>
+          <span>{t("track_col")}</span>
+          <span className="hidden sm:block">{t("album_col")}</span>
           <span className="hidden sm:flex items-center justify-center">
             <Clock className="w-3.5 h-3.5" />
           </span>
@@ -350,7 +369,7 @@ export function PlaylistView({
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 text-white/30 hover:text-deezer"
-                    title="Open on Deezer"
+                    title={t("open_on_deezer")}
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>

@@ -21,6 +21,9 @@ def build_system_prompt(  # pylint: disable=too-many-arguments,too-many-position
     count: int,
     is_retry: bool = False,
     failed_tracks: Optional[List[dict]] = None,
+    selected_tracks: Optional[List[dict]] = None,
+    search_context: Optional[str] = None,
+    already_matched_tracks: Optional[List[dict]] = None,
 ) -> str:
     base = "You are a music expert helping the user curate a playlist. "
     strict = (
@@ -40,6 +43,24 @@ def build_system_prompt(  # pylint: disable=too-many-arguments,too-many-position
         "Go deep into the specific niche requested.\n"
     )
 
+    selected_instruction = ""
+    if selected_tracks:
+        selected_list = ", ".join([f"'{t.get('title', '')}' by {t.get('artist', '')}" for t in selected_tracks])
+        selected_instruction = (
+            f"The user has selected the following tracks from the previous playlist to KEEP: [{selected_list}]. "
+            "You MUST keep these selected tracks in the new playlist, and add or change the remaining tracks "
+            "to fulfill the user's new request. "
+        )
+
+    context_instruction = ""
+    if search_context:
+        context_instruction = (
+            "Here is some web search context about the requested music style/genre. "
+            "Use it to find real, existing songs and artists (names, titles, styles):\n"
+            f"{search_context}\n\n"
+            "CRITICAL: Do NOT hallucinate. Do NOT invent artists or song names. Use the search context to verify.\n"
+        )
+
     retry_instruction = ""
     if is_retry and failed_tracks:
         failed_list = "\n".join(
@@ -52,13 +73,24 @@ def build_system_prompt(  # pylint: disable=too-many-arguments,too-many-position
             "CRITICAL: Only generate tracks that actually exist. No fake tracks. "
         )
 
+    already_matched_instruction = ""
+    if already_matched_tracks:
+        matched_list = "\n".join([f"- '{t.get('title', '')}' by {t.get('artist', '')}" for t in already_matched_tracks])
+        already_matched_instruction = (
+            f"The following tracks are already in the playlist. You MUST NOT include or regenerate them:\n"
+            f"{matched_list}\n\n"
+        )
+
     prompt_str = (
         base
         + f"Generate a playlist of exactly {count} songs. "
         + niche_directive
         + genre_instruction
+        + selected_instruction
+        + context_instruction
         + strict
         + retry_instruction
+        + already_matched_instruction
     )
 
     prompt_str += (
@@ -71,7 +103,13 @@ def build_system_prompt(  # pylint: disable=too-many-arguments,too-many-position
 
 
 async def call_llm(
-    api_key: str, model: str, system_prompt: str, user_prompt: str
+    api_key: str,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    history: Optional[List[dict]] = None,
+    fallback_model: Optional[str] = None,
+    api_url: str = "https://openrouter.ai/api/v1/chat/completions",
 ) -> dict:
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -80,27 +118,50 @@ async def call_llm(
         "X-Title": "Deezer Playlist Generator",
     }
     messages = [{"role": "system", "content": system_prompt}]
+    if history:
+        for msg in history:
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
     messages.append({"role": "user", "content": user_prompt})
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json={"model": model, "messages": messages},
-        )
-        if response.status_code != 200:
-            logger.error(
-                "OpenRouter API error: %s - %s", response.status_code, response.text
-            )
-            raise HTTPException(
-                status_code=502,
-                detail=f"OpenRouter API returned status code {response.status_code}",
-            )
-        res_data = response.json()
-    choices = res_data.get("choices", [])
-    if not choices:
-        raise ValueError("No response choices from OpenRouter")
-    content = choices[0].get("message", {}).get("content", "")
-    if not content:
-        raise ValueError("Empty completion response from OpenRouter")
-    return extract_json(content)
+    models_to_try = [model]
+    if fallback_model and fallback_model != model:
+        models_to_try.append(fallback_model)
+
+    last_error = None
+    for current_model in models_to_try:
+        try:
+            logger.info("Calling LLM at %s with model: %s", api_url, current_model)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    api_url,
+                    headers=headers,
+                    json={"model": current_model, "messages": messages},
+                )
+                if response.status_code != 200:
+                    logger.warning(
+                        "Model %s failed with status %d: %s", 
+                        current_model, response.status_code, response.text
+                    )
+                    last_error = f"API status {response.status_code}: {response.text}"
+                    continue
+                res_data = response.json()
+            choices = res_data.get("choices", [])
+            if not choices:
+                last_error = "No response choices from OpenRouter"
+                continue
+            content = choices[0].get("message", {}).get("content", "")
+            if not content:
+                last_error = "Empty completion response from OpenRouter"
+                continue
+            
+            return extract_json(content)
+        except Exception as e:
+            logger.warning("Error calling model %s: %s", current_model, e)
+            last_error = str(e)
+            continue
+
+    # If all models failed:
+    raise HTTPException(
+        status_code=502,
+        detail=f"LLM API failed. Last error from {models_to_try[-1]}: {last_error}",
+    )

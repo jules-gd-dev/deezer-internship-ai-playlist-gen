@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Genre } from "@/types";
+import { useI18n } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 
 const iconMap: Record<string, LucideIcon> = {
   Music, Sparkles, Guitar, Radio, Mic, Piano, Music3,
@@ -22,11 +24,18 @@ interface GenreDropdownProps {
 }
 
 export function GenreDropdown({ genres, selected, onSelect, disabled = false }: GenreDropdownProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const current = genres.find((g) => g.id === selected) ?? genres[0];
   const CurrentIcon = iconMap[current.icon] ?? Music;
+
+  const getGenreName = (g: Genre) => {
+    const cleanId = g.id.replace("-", "").replace("&", "");
+    const key = `genre_${cleanId}` as TranslationKey;
+    return t(key);
+  };
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -72,7 +81,7 @@ export function GenreDropdown({ genres, selected, onSelect, disabled = false }: 
         `}
       >
         <CurrentIcon className="w-4 h-4 text-white/30 shrink-0" strokeWidth={2} />
-        <span className="flex-1 text-left truncate">{current.name}</span>
+        <span className="flex-1 text-left truncate">{getGenreName(current)}</span>
         <ChevronDown
           className={`w-4 h-4 text-white/40 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
@@ -80,7 +89,7 @@ export function GenreDropdown({ genres, selected, onSelect, disabled = false }: 
 
       {/* Menu */}
       {open && (
-        <div className="absolute z-50 left-0 right-0 bottom-full mb-2 py-2 bg-[#1a1a1a] border border-white/[0.08] rounded-xl shadow-2xl shadow-black/60 max-h-72 overflow-y-auto overscroll-contain">
+        <div className="absolute z-50 left-0 right-0 top-full mt-2 py-2 bg-[#1a1a1a] border border-white/[0.08] rounded-xl shadow-2xl shadow-black/60 max-h-72 overflow-y-auto overscroll-contain">
           {genres.map((genre) => {
             const Icon = iconMap[genre.icon] ?? Music;
             const isActive = selected === genre.id;
@@ -106,7 +115,7 @@ export function GenreDropdown({ genres, selected, onSelect, disabled = false }: 
                   className={`w-4 h-4 shrink-0 ${isActive ? "text-deezer" : "text-white/40"}`}
                   strokeWidth={2}
                 />
-                <span className="flex-1 text-left">{genre.name}</span>
+                <span className="flex-1 text-left">{getGenreName(genre)}</span>
                 {isActive && (
                   <div className="w-1.5 h-1.5 rounded-full bg-deezer shrink-0" />
                 )}

@@ -2,36 +2,24 @@ services:
   backend:
     build:
       context: ./backend
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8001:8000"
     volumes:
-      - ./backend:/app
       - ./.git:/app/.git:ro
     environment:
-      - PROVIDER=${PROVIDER:-openrouter}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-openai/gpt-4o}
-      - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - GROQ_MODEL=${GROQ_MODEL}
-      - GROQ_FALLBACK_MODEL=${GROQ_FALLBACK_MODEL}
       - GIT_DIR=/app/.git
     restart: always
 
   frontend:
     build:
       context: ./frontend
-    command: npm run dev
     ports:
       - "3001:3000"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     environment:
       - BACKEND_URL=http://backend:8000
-      - NODE_ENV=development
+      - NODE_ENV=production
     restart: always
