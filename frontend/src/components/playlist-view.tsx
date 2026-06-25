@@ -144,10 +144,24 @@ export function PlaylistView({
 
   // Reset audio state when tracks prop changes (during render phase to avoid cascading renders)
   const [prevTracks, setPrevTracks] = useState(tracks);
-  if (tracks !== prevTracks) {
+  const [prevName, setPrevName] = useState(name);
+  if (tracks !== prevTracks || name !== prevName) {
     setPrevTracks(tracks);
-    setPlayingTrack(null);
-    setIsPlaying(false);
+    setPrevName(name);
+
+    const nameChanged = name !== prevName;
+    const prevTrackIds = prevTracks.map((t) => t.id).sort().join(",");
+    const currentTrackIds = tracks.map((t) => t.id).sort().join(",");
+    const isReorder = prevTrackIds === currentTrackIds;
+    const isStillPresent = playingTrack ? tracks.some((t) => t.id === playingTrack.id) : false;
+
+    if (nameChanged || (!isReorder && !isStillPresent)) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setPlayingTrack(null);
+      setIsPlaying(false);
+    }
   }
 
   // Stop audio on unmount
