@@ -285,24 +285,24 @@ export function PlaylistView({
             const isSelected = selectedTrackIds.includes(track.id);
 
             // Compute shift offset class to animate other items sliding away
-            let shiftClass = "transition-all duration-200 ease-in-out translate-y-0";
+            let shiftClass = "transition-transform duration-300 ease-out translate-y-0";
             if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
               if (draggedIndex < dragOverIndex) {
                 // Dragging down: tracks between original position and current hover position slide UP
                 if (i > draggedIndex && i <= dragOverIndex) {
-                  shiftClass = "transition-all duration-200 ease-in-out -translate-y-[66px]";
+                  shiftClass = "transition-transform duration-300 ease-out -translate-y-[66px]";
                 }
               } else {
                 // Dragging up: tracks between current hover position and original position slide DOWN
                 if (i >= dragOverIndex && i < draggedIndex) {
-                  shiftClass = "transition-all duration-200 ease-in-out translate-y-[66px]";
+                  shiftClass = "transition-transform duration-300 ease-out translate-y-[66px]";
                 }
               }
             }
 
             return (
               <div
-                key={`${track.id}-${i}`}
+                key={track.id}
                 onClick={() => track.previewUrl && togglePlay(track)}
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, i)}
