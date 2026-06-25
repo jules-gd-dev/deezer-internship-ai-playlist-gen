@@ -55,6 +55,8 @@ const translations = {
     history_title: "YOUR HISTORY",
     history_empty: "No saved playlists yet.",
     clear_history: "Clear history",
+    move_up: "Move up",
+    move_down: "Move down",
   },
   fr: {
     title: "Générateur de Playlist",
@@ -106,6 +108,8 @@ const translations = {
     history_title: "VOTRE HISTORIQUE",
     history_empty: "Aucune playlist enregistrée.",
     clear_history: "Effacer l'historique",
+    move_up: "Monter le titre",
+    move_down: "Descendre le titre",
   },
 };
 

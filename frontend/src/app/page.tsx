@@ -104,6 +104,31 @@ export default function Home() {
     });
   };
 
+  const handleMoveTrack = (index: number, direction: "up" | "down") => {
+    setTracks(prev => {
+      const updated = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex >= 0 && targetIndex < updated.length) {
+        const temp = updated[index];
+        updated[index] = updated[targetIndex];
+        updated[targetIndex] = temp;
+      }
+
+      setHistory(prevHistory => {
+        const updatedHistory = prevHistory.map(entry => {
+          if (entry.prompt === prompt) {
+            return { ...entry, tracks: updated };
+          }
+          return entry;
+        });
+        localStorage.setItem("playlist_history", JSON.stringify(updatedHistory));
+        return updatedHistory;
+      });
+
+      return updated;
+    });
+  };
+
   const handleLoadHistory = (entry: HistoryEntry) => {
     if (loading) return;
     setTracks(entry.tracks);
@@ -332,7 +357,7 @@ export default function Home() {
             </div>
           ) : tracks.length > 0 ? (
             <div className="flex-grow flex flex-col justify-between gap-6">
-              <PlaylistView tracks={tracks} name={playlistName} onDeleteTrack={handleDeleteTrack} />
+              <PlaylistView tracks={tracks} name={playlistName} onDeleteTrack={handleDeleteTrack} onMoveTrack={handleMoveTrack} />
               
               <div className="flex justify-end pt-4 border-t border-white/[0.04] shrink-0">
                 <button

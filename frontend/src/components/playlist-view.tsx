@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Play, Pause, ExternalLink, Clock, Music, Trash2 } from "lucide-react";
+import { Play, Pause, ExternalLink, Clock, Music, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import type { EnrichedTrack } from "@/types";
 import { useI18n } from "@/lib/i18n";
 
@@ -13,6 +13,7 @@ interface PlaylistViewProps {
   selectedTrackIds?: number[];
   onToggleSelect?: (track: EnrichedTrack) => void;
   onDeleteTrack?: (trackId: number) => void;
+  onMoveTrack?: (index: number, direction: "up" | "down") => void;
 }
 
 export function PlaylistView({
@@ -22,6 +23,7 @@ export function PlaylistView({
   selectedTrackIds = [],
   onToggleSelect,
   onDeleteTrack,
+  onMoveTrack,
 }: PlaylistViewProps) {
   const { t } = useI18n();
   const [playingTrack, setPlayingTrack] = useState<EnrichedTrack | null>(null);
@@ -143,8 +145,8 @@ export function PlaylistView({
     .slice(0, 4);
   // Dynamic grid classes
   const gridClass = selectable
-    ? "grid grid-cols-[24px_30px_1fr_40px] sm:grid-cols-[24px_40px_1fr_1fr_50px_40px]"
-    : "grid grid-cols-[30px_1fr_40px] sm:grid-cols-[40px_1fr_1fr_50px_40px]";
+    ? "grid grid-cols-[24px_30px_1fr_60px] sm:grid-cols-[24px_40px_1fr_1fr_50px_70px]"
+    : "grid grid-cols-[30px_1fr_60px] sm:grid-cols-[40px_1fr_1fr_50px_70px]";
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
@@ -365,6 +367,32 @@ export function PlaylistView({
 
                 {/* Quick actions */}
                 <div className="flex items-center justify-center gap-1.5 shrink-0">
+                  {onMoveTrack && (
+                    <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMoveTrack(i, "up");
+                        }}
+                        disabled={i === 0}
+                        className="p-0.5 text-white/30 hover:text-white transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
+                        title={t("move_up")}
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMoveTrack(i, "down");
+                        }}
+                        disabled={i === tracks.length - 1}
+                        className="p-0.5 text-white/30 hover:text-white transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
+                        title={t("move_down")}
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                   {onDeleteTrack && (
                     <button
                       onClick={(e) => {
