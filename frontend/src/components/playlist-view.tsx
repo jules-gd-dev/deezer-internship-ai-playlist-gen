@@ -286,20 +286,41 @@ export function PlaylistView({
             const isCurrentPlaying = isCurrent && isPlaying;
             const isSelected = selectedTrackIds.includes(track.id);
 
-            // Compute shift offset class to animate other items sliding away
-            let shiftClass = "transition-transform duration-300 ease-out translate-y-0";
+            // Compute shift offset dynamically via inline style to support any drag distance
+            let transformStyle = {};
             if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
-              if (draggedIndex < dragOverIndex) {
+              if (i === draggedIndex) {
+                const offset = (dragOverIndex - draggedIndex) * 66;
+                transformStyle = {
+                  transform: `translateY(${offset}px)`,
+                  transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                  willChange: "transform",
+                };
+              } else if (draggedIndex < dragOverIndex) {
                 // Dragging down: tracks between original position and current hover position slide UP
                 if (i > draggedIndex && i <= dragOverIndex) {
-                  shiftClass = "transition-transform duration-300 ease-out -translate-y-[66px]";
+                  transformStyle = {
+                    transform: "translateY(-66px)",
+                    transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    willChange: "transform",
+                  };
                 }
               } else {
                 // Dragging up: tracks between current hover position and original position slide DOWN
                 if (i >= dragOverIndex && i < draggedIndex) {
-                  shiftClass = "transition-transform duration-300 ease-out translate-y-[66px]";
+                  transformStyle = {
+                    transform: "translateY(66px)",
+                    transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    willChange: "transform",
+                  };
                 }
               }
+            } else {
+              transformStyle = {
+                transform: "translateY(0px)",
+                transition: "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+                willChange: "transform",
+              };
             }
 
             return (
@@ -310,10 +331,11 @@ export function PlaylistView({
                 onDragStart={(e) => handleDragStart(e, i)}
                 onDragOver={(e) => handleDragOver(e, i)}
                 onDragEnd={handleDragEnd}
-                className={`${gridClass} ${shiftClass} gap-4 items-center px-4 py-3 rounded-xl select-none ${
+                style={transformStyle}
+                className={`${gridClass} gap-4 items-center px-4 py-3 rounded-xl select-none ${
                   isCurrent || isSelected ? "" : "hover:bg-white/[0.03]"
                 } ${track.previewUrl ? "cursor-pointer" : ""} ${
-                  draggedIndex === i ? "opacity-20 bg-deezer/10 scale-[0.98] border border-dashed border-deezer/30" : ""
+                  draggedIndex === i ? "opacity-50 bg-deezer/10 scale-[0.98] border border-dashed border-deezer/30" : ""
                 }`}
               >
                 {/* Grip Handle */}
